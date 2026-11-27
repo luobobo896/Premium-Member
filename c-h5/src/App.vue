@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
+import AppIcon from './components/AppIcon.vue';
 import BenefitView from './views/BenefitView.vue';
 import HomeView from './views/HomeView.vue';
 import LoginView from './views/LoginView.vue';
@@ -26,6 +27,19 @@ type View =
   | 'tickets';
 const activeView = ref<View>('home');
 const currentOrder = ref<OrderInfo | null>(null);
+
+const tabs = [
+  { key: 'home', label: '首页', icon: 'home' },
+  { key: 'ai', label: '创作', icon: 'sparkles' },
+  { key: 'benefit', label: '权益', icon: 'gift' },
+  { key: 'member', label: '我的', icon: 'user' },
+] as const;
+
+const showTabs = computed(() => !['login', 'payResult'].includes(activeView.value));
+const activeTab = computed(() => {
+  if (activeView.value === 'orders' || activeView.value === 'tickets') return 'member';
+  return activeView.value;
+});
 
 function requestLogin(redirect: View, action?: { claimSku?: string; planId?: number }) {
   setLoginIntent(redirect, action);
@@ -58,62 +72,7 @@ function handleOrdered(order: OrderInfo) {
 </script>
 
 <template>
-  <main class="app-shell">
-    <nav
-      v-if="!['login', 'payResult'].includes(activeView)"
-      class="view-switch"
-      aria-label="会员导航"
-    >
-      <button
-        :class="{ active: activeView === 'home' }"
-        type="button"
-        @click="navigate('home')"
-      >
-        首页
-      </button>
-      <button
-        :class="{ active: activeView === 'member' }"
-        type="button"
-        @click="navigate('member')"
-      >
-        我的
-      </button>
-      <button
-        :class="{ active: activeView === 'benefit' }"
-        type="button"
-        @click="navigate('benefit')"
-      >
-        权益
-      </button>
-      <button
-        :class="{ active: activeView === 'ai' }"
-        type="button"
-        @click="navigate('ai')"
-      >
-        AI 模板
-      </button>
-      <button
-        :class="{ active: activeView === 'plans' || activeView === 'payResult' }"
-        type="button"
-        @click="navigate('plans')"
-      >
-        套餐
-      </button>
-      <button
-        :class="{ active: activeView === 'orders' }"
-        type="button"
-        @click="navigate('orders')"
-      >
-        订单
-      </button>
-      <button
-        :class="{ active: activeView === 'tickets' }"
-        type="button"
-        @click="navigate('tickets')"
-      >
-        工单
-      </button>
-    </nav>
+  <main class="app-shell" :class="{ 'app-shell--plain': !showTabs }">
     <HomeView
       v-if="activeView === 'home'"
       :logged-in="loggedIn"
@@ -124,6 +83,7 @@ function handleOrdered(order: OrderInfo) {
       v-else-if="activeView === 'member'"
       @login="requestLogin('member')"
       @logout="handleLogout"
+      @navigate="navigate"
     />
     <BenefitView
       v-else-if="activeView === 'benefit'"
@@ -152,13 +112,26 @@ function handleOrdered(order: OrderInfo) {
     <TicketView v-else-if="activeView === 'tickets' && loggedIn" @logout="handleLogout" />
     <LoginView v-else-if="activeView === 'login'" @logged-in="handleLoggedIn" />
     <HomeView v-else :logged-in="loggedIn" @login="requestLogin('member')" @navigate="navigate" />
+
+    <nav v-if="showTabs" class="tabbar" aria-label="主导航">
+      <button
+        v-for="tab in tabs"
+        :key="tab.key"
+        :class="{ 'tabbar__item--active': activeTab === tab.key }"
+        class="tabbar__item"
+        type="button"
+        :aria-label="tab.label"
+        :aria-current="activeTab === tab.key ? 'page' : undefined"
+        @click="navigate(tab.key)"
+      >
+        <span
+          class="tabbar__icon"
+          :class="{ 'tabbar__icon--fab': tab.key === 'ai' }"
+        >
+          <AppIcon :name="tab.icon" :size="tab.key === 'ai' ? 24 : 22" />
+        </span>
+        <span class="tabbar__label">{{ tab.label }}</span>
+      </button>
+    </nav>
   </main>
 </template>
-
-<style scoped>
-.view-switch button {
-  padding: 0 2px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-</style>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Button, Tag } from 'vant';
+import { Button } from 'vant';
 
 import {
   ApiError,
@@ -73,6 +73,12 @@ const categories = computed(() => {
 const works = computed(() => tasks.value.filter((item) => item.outputUrl));
 const terminal = new Set(['SUCCESS', 'FAILED', 'REJECTED', 'UNKNOWN']);
 
+function coverTone(type: AiType): string {
+  if (type === 'DRESSUP') return 'cover--dress';
+  if (type === 'VIDEO') return 'cover--video';
+  return 'cover--photo';
+}
+
 function formatDate(value: null | string): string {
   if (!value) return '-';
   return new Intl.DateTimeFormat('zh-CN', {
@@ -134,10 +140,7 @@ async function load() {
       tasks.value = [];
       return;
     }
-    const [quotaData, taskData] = await Promise.all([
-      getAiQuota(),
-      getAiTasks(),
-    ]);
+    const [quotaData, taskData] = await Promise.all([getAiQuota(), getAiTasks()]);
     quota.value = quotaData;
     tasks.value = taskData;
   } catch (ex) {
@@ -218,14 +221,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="surface ai-surface" aria-labelledby="ai-title">
-    <header class="member-header">
+  <section class="page" aria-labelledby="ai-title">
+    <header class="page-head">
       <div>
         <p class="eyebrow">AI 创作</p>
-        <h1 id="ai-title">把照片变成作品</h1>
+        <h1 id="ai-title" class="page-title">把照片变成作品</h1>
         <p class="lede">选模板、上传一张照片，Mock 供应商约 1 秒生成占位作品。</p>
       </div>
-      <span v-if="quota?.period" class="status-pill">
+      <span v-if="quota?.period" class="pill pill--accent">
         图 {{ quota.image.remaining }} · 视频 {{ quota.video.remaining }}
       </span>
     </header>
@@ -234,28 +237,32 @@ onBeforeUnmount(() => {
     <p v-else-if="error" class="form-error" role="alert">{{ error }}</p>
 
     <template v-if="!loading && !error">
-      <div v-if="loggedIn && quota?.period" class="ai-quota-grid">
-        <div>
-          <span class="ai-quota-label">图片次数</span>
-          <strong>{{ quota.image.remaining }}/{{ quota.image.limit }}</strong>
-          <span class="ai-quota-meta">照片与换装共用</span>
-        </div>
-        <div>
-          <span class="ai-quota-label">视频次数</span>
-          <strong>{{ quota.video.remaining }}/{{ quota.video.limit }}</strong>
-          <span class="ai-quota-meta">单独计次</span>
-        </div>
+      <div v-if="loggedIn && quota?.period" class="quota-grid">
+        <article class="media-card">
+          <div class="cover cover--photo quota-cover">
+            <span class="cover__eyebrow">图片次数</span>
+            <span class="cover__title quota-number">{{ quota.image.remaining }}</span>
+            <span class="cover__sub">共 {{ quota.image.limit }} 次 · 照片与换装共用</span>
+          </div>
+        </article>
+        <article class="media-card">
+          <div class="cover cover--video quota-cover">
+            <span class="cover__eyebrow">视频次数</span>
+            <span class="cover__title quota-number">{{ quota.video.remaining }}</span>
+            <span class="cover__sub">共 {{ quota.video.limit }} 次 · 单独计次</span>
+          </div>
+        </article>
       </div>
 
-      <div v-else-if="!loggedIn" class="state-block">
-        <p class="state-text">游客可浏览全部 AI 模板，登录后上传照片并生成作品。</p>
-      </div>
+      <p v-else-if="!loggedIn" class="empty-state">
+        游客可浏览全部 AI 模板，登录后上传照片并生成作品。
+      </p>
 
-      <div v-else class="state-block">
-        <p class="state-text">当前没有生效中的会员周期，购买套餐后才会获得 AI 次数。</p>
-      </div>
+      <p v-else class="empty-state">
+        当前没有生效中的会员周期，购买套餐后才会获得 AI 次数。
+      </p>
 
-      <div class="ai-type-tabs" role="tablist">
+      <div class="chips" role="tablist" aria-label="创作类型">
         <button
           v-for="tab in typeTabs"
           :key="tab.value"
@@ -267,7 +274,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <div class="ai-category-row">
+      <div class="chips chips--sub">
         <button
           :class="{ active: !activeCategory }"
           type="button"
@@ -286,31 +293,48 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <div class="ai-template-grid">
-        <button
-          v-for="template in visibleTemplates"
-          :key="template.id"
-          :class="{ selected: selectedTemplate?.id === template.id }"
-          class="ai-template"
-          type="button"
-          @click="selectedTemplate = template"
-        >
-          <span class="ai-template-cover">{{ template.name.slice(0, 1) }}</span>
-          <span class="ai-template-name">{{ template.name }}</span>
-          <span class="ai-template-category">{{ template.category }}</span>
-        </button>
-      </div>
+      <section aria-labelledby="template-title">
+        <div class="section-head">
+          <h2 id="template-title" class="section-title">选择模板</h2>
+          <p class="section-sub">{{ visibleTemplates.length }} 个</p>
+        </div>
+        <div class="template-grid">
+          <button
+            v-for="template in visibleTemplates"
+            :key="template.id"
+            :class="{ selected: selectedTemplate?.id === template.id }"
+            class="media-card template-card"
+            type="button"
+            @click="selectedTemplate = template"
+          >
+            <span class="cover template-cover" :class="coverTone(template.type)">
+              <span class="cover__eyebrow">{{ template.category }}</span>
+              <span class="cover__title">{{ template.name }}</span>
+            </span>
+          </button>
+        </div>
+      </section>
 
-      <div v-if="!loggedIn" class="ai-submit-card">
-        <p class="ai-step-title">登录后生成</p>
-        <p class="ai-selected-name">{{ selectedTemplate?.name || '先选一个模板' }}</p>
-        <Button block type="primary" class="submit-button" @click="emit('login')">
-          登录后生成
-        </Button>
-      </div>
+      <article v-if="!loggedIn" class="media-card">
+        <div class="cover cover--hero cover--compact">
+          <span class="cover__eyebrow">登录后生成</span>
+          <span class="cover__title">{{ selectedTemplate?.name || '先选一个模板' }}</span>
+          <span class="cover__sub">登录后上传素材并提交创作</span>
+        </div>
+        <div class="card-body">
+          <Button block type="primary" class="submit-button" @click="emit('login')">
+            登录后生成
+          </Button>
+        </div>
+      </article>
 
-      <div v-else class="ai-submit-card">
-          <p class="ai-step-title">1. 上传一张照片</p>
+      <article v-else class="media-card">
+        <div class="cover cover--hero cover--compact">
+          <span class="cover__eyebrow">开始创作</span>
+          <span class="cover__title">{{ selectedTemplate?.name || '尚未选择模板' }}</span>
+          <span class="cover__sub">上传一张照片，确认模板后提交</span>
+        </div>
+        <div class="card-body">
           <input
             ref="fileInput"
             accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
@@ -327,13 +351,10 @@ onBeforeUnmount(() => {
           >
             {{ inputAsset ? '更换素材' : '选择图片 / 视频' }}
           </Button>
-          <p v-if="inputAsset" class="ai-file-name">
+          <p v-if="inputAsset" class="card-sub">
             已上传 {{ (inputAsset.size / 1024).toFixed(1) }} KB · {{ inputAsset.mime }}
           </p>
-
-          <p class="ai-step-title">2. 确认模板</p>
-          <p class="ai-selected-name">{{ selectedTemplate?.name || '请选择一个模板' }}</p>
-
+          <p class="card-sub">已选模板：{{ selectedTemplate?.name || '请选择一个模板' }}</p>
           <Button
             block
             type="primary"
@@ -344,32 +365,31 @@ onBeforeUnmount(() => {
           >
             提交创作（消耗 1 次）
           </Button>
-      </div>
+        </div>
+      </article>
 
-      <section v-if="loggedIn && currentTask" class="ai-current" aria-live="polite">
-          <div class="benefit-card-head">
-            <div>
-              <p class="eyebrow">当前任务</p>
-              <h2>{{ currentTask.templateName }}</h2>
-            </div>
-            <Tag
-              :type="
-                currentTask.status === 'SUCCESS'
-                  ? 'success'
-                  : currentTask.status === 'UNKNOWN'
-                    ? 'warning'
-                    : currentTask.status === 'FAILED' || currentTask.status === 'REJECTED'
-                      ? 'danger'
-                      : 'primary'
-              "
-            >
-              {{ currentTask.status }}
-            </Tag>
-          </div>
-          <p class="benefit-meta">
-            <span>{{ currentTask.taskNo }}</span>
-            <span>{{ STATUS_LABELS[currentTask.status] ?? currentTask.status }}</span>
-          </p>
+      <article v-if="loggedIn && currentTask" class="media-card" aria-live="polite">
+        <div class="cover cover--benefit cover--compact">
+          <span class="cover__eyebrow">当前任务</span>
+          <span class="cover__title">{{ currentTask.templateName }}</span>
+          <span class="cover__sub">{{ STATUS_LABELS[currentTask.status] ?? currentTask.status }}</span>
+          <span
+            class="pill task-status"
+            :class="
+              currentTask.status === 'SUCCESS'
+                ? 'pill--accent'
+                : currentTask.status === 'UNKNOWN'
+                  ? 'pill--warning'
+                  : currentTask.status === 'FAILED' || currentTask.status === 'REJECTED'
+                    ? 'pill--danger'
+                    : ''
+            "
+          >
+            {{ currentTask.status }}
+          </span>
+        </div>
+        <div class="card-body">
+          <p class="card-sub">{{ currentTask.taskNo }}</p>
           <p v-if="currentTask.failReason" class="form-error">{{ currentTask.failReason }}</p>
           <div v-if="currentTask.outputUrl" class="ai-output">
             <video
@@ -381,22 +401,23 @@ onBeforeUnmount(() => {
               muted
               playsinline
             />
-            <img
-              v-else
-              :alt="currentTask.templateName"
-              :src="assetUrl(currentTask.outputUrl)"
-            />
+            <img :alt="currentTask.templateName" :src="assetUrl(currentTask.outputUrl)" />
           </div>
-          <p v-if="currentTask.status === 'UNKNOWN'" class="ai-note">
+          <p v-if="currentTask.status === 'UNKNOWN'" class="card-sub">
             供应商未返回明确结果，本次次数继续占用，只能查询，不会自动重试。
           </p>
-      </section>
+        </div>
+      </article>
 
-      <section v-if="loggedIn" class="history-section">
-          <h2>我的作品</h2>
-          <p v-if="works.length === 0" class="state-text">还没有生成成功的作品。</p>
-          <div v-else class="ai-works">
-            <article v-for="task in works" :key="task.id" class="ai-work">
+      <section v-if="loggedIn" aria-labelledby="works-title">
+        <div class="section-head">
+          <h2 id="works-title" class="section-title">我的作品</h2>
+          <p class="section-sub">{{ works.length }} 个</p>
+        </div>
+        <p v-if="works.length === 0" class="state-text">还没有生成成功的作品。</p>
+        <div v-else class="card-list">
+          <article v-for="task in works" :key="task.id" class="media-card work-card">
+            <div class="work-cover">
               <video
                 v-if="task.outputMime?.startsWith('video')"
                 :src="assetUrl(task.outputUrl)"
@@ -406,16 +427,144 @@ onBeforeUnmount(() => {
                 playsinline
               />
               <img v-else :alt="task.templateName" :src="assetUrl(task.outputUrl)" />
+            </div>
+            <div class="card-body work-body">
               <div>
-                <strong>{{ task.templateName }}</strong>
-                <span class="history-meta">{{ formatDate(task.finishedAt) }}</span>
+                <p class="card-title">{{ task.templateName }}</p>
+                <p class="card-sub">{{ formatDate(task.finishedAt) }}</p>
               </div>
               <Button plain size="small" type="danger" @click="removeWork(task)">
                 删除
               </Button>
-            </article>
-          </div>
+            </div>
+          </article>
+        </div>
       </section>
     </template>
   </section>
 </template>
+
+<style scoped>
+.quota-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.quota-cover {
+  min-height: 132px;
+}
+
+.quota-number {
+  font-size: var(--font-number);
+  font-variant-numeric: tabular-nums;
+}
+
+.quota-cover .cover__sub {
+  white-space: normal;
+}
+
+.chips {
+  display: flex;
+  gap: var(--space-2);
+  margin: calc(var(--space-2) * -1) 0 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.chips--sub {
+  margin-top: calc(var(--space-3) * -1);
+}
+
+.chips button {
+  height: 34px;
+  flex: none;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--font-sub);
+  cursor: pointer;
+}
+
+.chips button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.template-card {
+  border-color: var(--border);
+  transition: border-color 180ms var(--ease);
+}
+
+.template-card.selected {
+  border-color: var(--accent);
+}
+
+.template-cover {
+  aspect-ratio: 3 / 4;
+  min-height: 0;
+  padding: var(--space-2);
+}
+
+.template-cover .cover__title {
+  font-size: var(--font-body);
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.file-input {
+  display: none;
+}
+
+.task-status {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+}
+
+.ai-output {
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--bg);
+}
+
+.ai-output img,
+.ai-output video {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.work-cover {
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: var(--overlay);
+}
+
+.work-cover img,
+.work-cover video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.work-body {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+</style>

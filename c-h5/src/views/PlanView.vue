@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 import { Button, Checkbox } from 'vant';
 
+import AppIcon from '../components/AppIcon.vue';
 import {
   ApiError,
   clearAccessToken,
@@ -36,6 +37,12 @@ const DEFAULT_RULES = [
 const title = ref('选择购买');
 const lede = ref('支付成功后立即开通，周期按服务端时间计算。');
 const rules = ref(DEFAULT_RULES);
+
+const PLAN_TONES = ['cover--photo', 'cover--dress', 'cover--video'];
+
+function tone(index: number): string {
+  return PLAN_TONES[index % PLAN_TONES.length];
+}
 
 function money(cents: number): string {
   return `¥${(cents / 100).toFixed(2)}`;
@@ -113,46 +120,63 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="surface benefit-surface" aria-labelledby="plan-title">
-    <header>
-      <p class="eyebrow">会员套餐</p>
-      <h1 id="plan-title">{{ title }}</h1>
-      <p class="lede">{{ lede }}</p>
+  <section class="page" aria-labelledby="plan-title">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">会员套餐</p>
+        <h1 id="plan-title" class="page-title">{{ title }}</h1>
+        <p class="lede">{{ lede }}</p>
+      </div>
     </header>
 
     <p v-if="loading" class="state-text">正在加载套餐…</p>
-    <p v-else-if="error" class="form-error" role="alert">{{ error }}</p>
+    <p v-else-if="error && !plans.length" class="form-error" role="alert">{{ error }}</p>
 
-    <div v-if="!loading" class="benefit-list">
+    <div v-if="!loading" class="card-list">
       <button
-        v-for="plan in plans"
+        v-for="(plan, index) in plans"
         :key="plan.id"
         :aria-pressed="selectedId === plan.id"
-        class="plan-card"
+        class="media-card plan-card"
         :class="{ selected: selectedId === plan.id }"
         type="button"
         @click="selectedId = plan.id"
       >
-        <span class="plan-head">
-          <strong>{{ plan.name }}</strong>
-          <span class="plan-price">{{ money(plan.priceCents) }}</span>
+        <span class="cover plan-cover" :class="tone(index)">
+          <span class="cover__eyebrow">会员套餐 · {{ plan.durationDays }} 天</span>
+          <span class="cover__title">{{ plan.name }}</span>
+          <span class="cover__price">{{ money(plan.priceCents) }}</span>
+          <span v-if="selectedId === plan.id" class="plan-check">
+            <AppIcon name="check" :size="16" />
+          </span>
         </span>
-        <span class="benefit-meta">
-          <span>{{ plan.durationDays }} 天</span>
-          <span>图片 {{ plan.aiImageQuota }} 次</span>
-          <span>视频 {{ plan.aiVideoQuota }} 次</span>
-          <span>权益 {{ plan.benefitQuota }} 项</span>
+        <span class="card-body">
+          <span class="card-title">{{ plan.durationDays }} 天会员周期</span>
+          <span class="card-sub">
+            图片 {{ plan.aiImageQuota }} 次 · 视频 {{ plan.aiVideoQuota }} 次 · 权益
+            {{ plan.benefitQuota }} 项
+          </span>
         </span>
       </button>
     </div>
 
-    <ul class="plan-rules">
-      <li v-for="rule in rules" :key="rule">{{ rule }}</li>
-    </ul>
+    <section aria-labelledby="rules-title">
+      <div class="section-head">
+        <h2 id="rules-title" class="section-title">购买须知</h2>
+        <p class="section-sub">按服务端周期计算</p>
+      </div>
+      <ul class="rule-list">
+        <li v-for="rule in rules" :key="rule">{{ rule }}</li>
+      </ul>
+    </section>
 
-    <Checkbox v-model="agreed" class="plan-agree">
-      我已阅读并同意《会员服务协议》，知悉周期起止与名额规则
-    </Checkbox>
+    <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+
+    <div class="agree-row">
+      <Checkbox v-model="agreed">
+        我已阅读并同意《会员服务协议》，知悉周期起止与名额规则
+      </Checkbox>
+    </div>
 
     <Button
       block
@@ -166,3 +190,52 @@ onMounted(async () => {
     </Button>
   </section>
 </template>
+
+<style scoped>
+.plan-card {
+  position: relative;
+  border-color: var(--border);
+  transition: border-color 180ms var(--ease);
+}
+
+.plan-card.selected {
+  border-color: var(--accent);
+}
+
+.plan-cover {
+  min-height: 132px;
+}
+
+.plan-check {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-deep);
+}
+
+.rule-list {
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-3) 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--font-sub);
+  line-height: 1.6;
+}
+
+.rule-list li + li {
+  margin-top: var(--space-2);
+}
+
+.agree-row {
+  padding: 0 var(--space-1);
+}
+</style>

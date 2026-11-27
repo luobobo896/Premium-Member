@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { Button, Tag } from 'vant';
+import { Button } from 'vant';
 
 import { ApiError, clearAccessToken, getOrders, type OrderInfo } from '../api';
 
@@ -18,6 +18,11 @@ const STATUS: Record<string, string> = {
   REFUNDED: '已退款',
   CLOSED: '已关闭',
 };
+const TONES = ['cover--photo', 'cover--dress', 'cover--video'];
+
+function tone(index: number): string {
+  return TONES[index % TONES.length];
+}
 
 function money(cents: number): string {
   return `¥${(cents / 100).toFixed(2)}`;
@@ -59,41 +64,52 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="surface benefit-surface" aria-labelledby="order-title">
-    <header>
-      <p class="eyebrow">我的订单</p>
-      <h1 id="order-title">购买记录</h1>
-      <p class="lede">周期从支付成功时间起算，展示为北京时间。</p>
+  <section class="page" aria-labelledby="order-title">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">我的订单</p>
+        <h1 id="order-title" class="page-title">购买记录</h1>
+        <p class="lede">周期从支付成功时间起算，展示为北京时间。</p>
+      </div>
     </header>
 
     <p v-if="loading" class="state-text">正在加载订单…</p>
     <p v-else-if="error" class="form-error" role="alert">{{ error }}</p>
-    <p v-else-if="orders.length === 0" class="state-text">还没有订单。</p>
+    <p v-else-if="orders.length === 0" class="empty-state">还没有订单。</p>
 
-    <div v-else class="benefit-list">
-      <article v-for="item in orders" :key="item.id" class="benefit-card">
-        <div class="benefit-card-head">
-          <div>
-            <h2>{{ item.plan?.name ?? '会员套餐' }}</h2>
-            <p class="benefit-desc">{{ item.orderNo }}</p>
-          </div>
-          <Tag :type="item.status === 'PAID' ? 'success' : 'default'">
+    <div v-else class="card-list">
+      <article v-for="(item, index) in orders" :key="item.id" class="media-card">
+        <div class="cover cover--compact" :class="tone(index)">
+          <span class="cover__eyebrow">订单 {{ item.orderNo }}</span>
+          <span class="cover__title">{{ item.plan?.name ?? '会员套餐' }}</span>
+          <span class="cover__price">{{ money(item.amountCents) }}</span>
+          <span
+            class="pill order-status"
+            :class="item.status === 'PAID' ? 'pill--accent' : ''"
+          >
             {{ STATUS[item.status] ?? item.status }}
-          </Tag>
+          </span>
         </div>
-        <p class="benefit-meta">
-          <span>{{ money(item.amountCents) }}</span>
-          <span>下单 {{ formatTime(item.createdAt) }}</span>
-        </p>
-        <p v-if="item.period" class="benefit-rules">
-          {{ periodLabel(item.period.status) }}：
-          {{ formatTime(item.period.startAt) }} 至 {{ formatTime(item.period.endAt) }}
-        </p>
+        <div class="card-body">
+          <h2 class="card-title">{{ item.plan?.name ?? '会员套餐' }}</h2>
+          <p class="card-sub">下单 {{ formatTime(item.createdAt) }}</p>
+          <p v-if="item.period" class="card-sub">
+            {{ periodLabel(item.period.status) }}：{{ formatTime(item.period.startAt) }} 至
+            {{ formatTime(item.period.endAt) }}
+          </p>
+        </div>
       </article>
     </div>
 
-    <Button block plain class="secondary-button logout-button" @click="load">
-      刷新订单
-    </Button>
+    <Button block plain class="secondary-button" @click="load">刷新订单</Button>
   </section>
 </template>
+
+<style scoped>
+.order-status {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+}
+</style>

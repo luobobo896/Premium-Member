@@ -57,8 +57,11 @@ function categoryLabel(value: string): string {
   return CATEGORY_OPTIONS.find((item) => item.value === value)?.label ?? value;
 }
 
-function statusClass(status: string): string {
-  return `ticket-status--${status.toLowerCase()}`;
+function statusPill(status: string): string {
+  if (status === 'OPEN' || status === 'FAILED') return 'pill pill--danger';
+  if (status === 'PROCESSING') return 'pill pill--warning';
+  if (status === 'RESOLVED' || status === 'SUCCESS') return 'pill pill--accent';
+  return 'pill';
 }
 
 function formatTime(value: null | string | undefined): string {
@@ -167,50 +170,72 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="surface ticket-surface" aria-labelledby="ticket-title">
-    <header class="ticket-header">
+  <section class="page" aria-labelledby="ticket-title">
+    <header class="page-head">
       <div>
         <p class="eyebrow">客服支持</p>
-        <h1 id="ticket-title">我的工单</h1>
+        <h1 id="ticket-title" class="page-title">我的工单</h1>
         <p class="lede">提交问题后由客服受理，处理进度与回复会显示在这里。</p>
       </div>
-      <Button v-if="!creating" plain class="ticket-new" @click="startCreate">
+      <button
+        v-if="!creating"
+        class="btn btn--secondary btn--small ticket-new"
+        type="button"
+        @click="startCreate"
+      >
         新建工单
-      </Button>
+      </button>
     </header>
 
-    <p v-if="loading" class="ticket-state">正在加载工单…</p>
+    <p v-if="loading" class="state-text">正在加载工单…</p>
     <p v-else-if="error" class="form-error" role="alert">{{ error }}</p>
 
-    <form v-if="creating" class="ticket-form" @submit.prevent="submit">
-      <h2>新建工单</h2>
-      <label class="ticket-field">
-        <span>分类</span>
-        <select v-model="form.category">
+    <form v-if="creating" class="form-panel" @submit.prevent="submit">
+      <div class="form-panel__head">
+        <div>
+          <p class="eyebrow">新建工单</p>
+          <h2 class="section-title">描述遇到的问题</h2>
+          <p class="card-sub">补充发生时间、操作步骤和期望结果，客服会按序处理。</p>
+        </div>
+      </div>
+      <label class="field">
+        <span class="field__label">分类</span>
+        <select v-model="form.category" class="field__select">
           <option v-for="item in CATEGORY_OPTIONS" :key="item.value" :value="item.value">
             {{ item.label }}
           </option>
         </select>
       </label>
-      <label class="ticket-field">
-        <span>标题</span>
-        <input v-model="form.title" maxlength="128" placeholder="一句话说明问题" />
+      <label class="field">
+        <span class="field__label">标题</span>
+        <input
+          v-model="form.title"
+          class="field__input"
+          maxlength="128"
+          placeholder="一句话说明问题"
+        />
       </label>
-      <label class="ticket-field">
-        <span>订单号（可选）</span>
-        <input v-model="form.orderNo" maxlength="40" placeholder="如 PM202611270001" />
+      <label class="field">
+        <span class="field__label">订单号（可选）</span>
+        <input
+          v-model="form.orderNo"
+          class="field__input"
+          maxlength="40"
+          placeholder="如 PM202611270001"
+        />
       </label>
-      <label class="ticket-field">
-        <span>问题描述</span>
+      <label class="field">
+        <span class="field__label">问题描述</span>
         <textarea
           v-model="form.content"
+          class="field__textarea"
           maxlength="5000"
           placeholder="请补充发生时间、操作步骤和期望结果"
           rows="5"
         ></textarea>
       </label>
       <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="ticket-form-actions">
+      <div class="inline-actions">
         <Button plain class="secondary-button" @click="cancelCreate">取消</Button>
         <Button
           block
@@ -224,357 +249,221 @@ onMounted(load);
       </div>
     </form>
 
-    <article v-if="selected" class="ticket-detail" aria-live="polite">
-      <div class="ticket-detail-head">
-        <button class="ticket-back" type="button" @click="selected = null">← 返回列表</button>
-        <span class="ticket-status" :class="statusClass(selected.status)">
+    <article v-if="selected" class="media-card" aria-live="polite">
+      <div class="cover cover--benefit ticket-detail-cover">
+        <span class="cover__eyebrow">工单详情 · {{ categoryLabel(selected.category) }}</span>
+        <span class="cover__title">{{ selected.title }}</span>
+        <span class="cover__sub">{{ selected.ticketNo }}</span>
+        <span class="ticket-detail-status" :class="statusPill(selected.status)">
           {{ STATUS_LABELS[selected.status] ?? selected.status }}
         </span>
       </div>
-      <p class="ticket-no">{{ selected.ticketNo }}</p>
-      <h2>{{ selected.title }}</h2>
-      <p class="ticket-meta">
-        {{ categoryLabel(selected.category) }}
-        <template v-if="selected.orderNo"> · 订单 {{ selected.orderNo }}</template>
-      </p>
-      <p class="ticket-content">{{ selected.content }}</p>
+      <div class="card-body">
+        <button class="btn btn--ghost ticket-back" type="button" @click="selected = null">
+          ← 返回列表
+        </button>
+        <p class="meta-row">
+          <span>{{ categoryLabel(selected.category) }}</span>
+          <span v-if="selected.orderNo">订单 {{ selected.orderNo }}</span>
+          <span>{{ formatTime(selected.createdAt) }}</span>
+        </p>
+        <p class="ticket-content">{{ selected.content }}</p>
 
-      <h3>处理进度</h3>
-      <ol class="ticket-timeline">
-        <li
-          v-for="(step, index) in STATUS_FLOW"
-          :key="step.value"
-          :class="{ current: index === currentStep, done: index <= currentStep }"
-        >
-          <span class="ticket-dot" aria-hidden="true"></span>
-          <div>
-            <strong>{{ step.label }}</strong>
-            <small v-if="stepTime(step.value)">{{ stepTime(step.value) }}</small>
+        <h3 class="ticket-subtitle">处理进度</h3>
+        <ol class="timeline">
+          <li
+            v-for="(step, index) in STATUS_FLOW"
+            :key="step.value"
+            :class="{ current: index === currentStep, done: index <= currentStep }"
+          >
+            <span class="timeline__dot" aria-hidden="true"></span>
+            <div>
+              <strong>{{ step.label }}</strong>
+              <small v-if="stepTime(step.value)">{{ stepTime(step.value) }}</small>
+            </div>
+          </li>
+        </ol>
+
+        <h3 class="ticket-subtitle">客服回复</h3>
+        <p v-if="!selected.replies?.length" class="state-text">
+          暂无回复，客服受理后会在这里展示。
+        </p>
+        <div v-else class="ticket-replies">
+          <div
+            v-for="reply in selected.replies"
+            :key="reply.createdAt + reply.content"
+            class="ticket-reply"
+          >
+            <p class="ticket-reply-head">
+              {{ reply.senderName || '客服' }} · {{ formatTime(reply.createdAt) }}
+            </p>
+            <p>{{ reply.content }}</p>
           </div>
-        </li>
-      </ol>
-
-      <h3>客服回复</h3>
-      <p v-if="!selected.replies?.length" class="ticket-state">
-        暂无回复，客服受理后会在这里展示。
-      </p>
-      <div v-else class="ticket-replies">
-        <div v-for="reply in selected.replies" :key="reply.createdAt + reply.content" class="ticket-reply">
-          <p class="ticket-reply-head">
-            {{ reply.senderName || '客服' }} · {{ formatTime(reply.createdAt) }}
-          </p>
-          <p>{{ reply.content }}</p>
         </div>
+        <Button plain block class="secondary-button" @click="refreshDetail">刷新进度</Button>
       </div>
-      <Button plain block class="secondary-button ticket-refresh" @click="refreshDetail">
-        刷新进度
-      </Button>
     </article>
 
     <template v-if="!creating && !selected">
-      <p v-if="!loading && !error && tickets.length === 0" class="ticket-state">
+      <p v-if="!loading && !error && tickets.length === 0" class="empty-state">
         还没有工单，遇到问题可以新建一条。
       </p>
-      <div v-else class="ticket-list">
+      <div v-else class="card-list">
         <button
           v-for="ticket in tickets"
           :key="ticket.id"
-          class="ticket-item"
+          class="media-card ticket-item"
           type="button"
           @click="openDetail(ticket)"
         >
-          <span class="ticket-item-head">
-            <strong>{{ ticket.title }}</strong>
-            <span class="ticket-status" :class="statusClass(ticket.status)">
+          <span class="cover cover--benefit2 cover--compact">
+            <span class="cover__eyebrow">{{ categoryLabel(ticket.category) }}</span>
+            <span class="cover__title">{{ ticket.title }}</span>
+            <span class="cover__sub">
+              {{ ticket.ticketNo }} · {{ formatTime(ticket.createdAt) }}
+            </span>
+            <span class="ticket-item-status" :class="statusPill(ticket.status)">
               {{ STATUS_LABELS[ticket.status] ?? ticket.status }}
             </span>
           </span>
-          <span class="ticket-meta">
-            {{ categoryLabel(ticket.category) }} · {{ formatTime(ticket.createdAt) }}
-          </span>
-          <span class="ticket-item-foot">
-            {{ ticket.ticketNo }}
-            <template v-if="ticket.replyCount"> · {{ ticket.replyCount }} 条回复</template>
+          <span class="card-body">
+            <span class="card-sub">
+              {{ ticket.replyCount ? `${ticket.replyCount} 条回复` : '暂无回复' }}
+            </span>
           </span>
         </button>
       </div>
     </template>
-    <p v-if="detailLoading" class="ticket-state">正在加载详情…</p>
+    <p v-if="detailLoading" class="state-text">正在加载详情…</p>
   </section>
 </template>
 
 <style scoped>
-.ticket-surface {
-  max-width: 460px;
-}
-
-.ticket-header,
-.ticket-detail-head,
-.ticket-item-head,
-.ticket-form-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .ticket-new {
   flex: none;
-  padding-inline: 14px;
-  border-color: var(--c-border);
-  color: var(--c-accent);
-  font-size: 13px;
 }
 
-.ticket-form,
-.ticket-detail {
-  margin-top: 22px;
-  padding: 18px;
-  border: 1px solid var(--c-border);
-  border-radius: 12px;
+.ticket-detail-cover {
+  min-height: 150px;
 }
 
-.ticket-form h2,
-.ticket-detail h2 {
-  margin: 0 0 14px;
-  font-size: 20px;
-}
-
-.ticket-field {
-  display: block;
-  margin-top: 14px;
-}
-
-.ticket-field:first-of-type {
-  margin-top: 0;
-}
-
-.ticket-field > span {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--c-muted);
-  font-size: 13px;
-}
-
-.ticket-field input,
-.ticket-field select,
-.ticket-field textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  background: var(--c-surface);
-  color: var(--c-text);
-  font: inherit;
-}
-
-.ticket-field textarea {
-  resize: vertical;
-}
-
-.ticket-form-actions {
-  margin-top: 18px;
-}
-
-.ticket-form-actions .submit-button {
-  margin-top: 0;
-}
-
-.ticket-form-actions .secondary-button {
-  flex: none;
-  margin-top: 0;
-}
-
-.ticket-status {
-  flex: none;
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: #f1eee8;
-  color: var(--c-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.ticket-status--open {
-  background: #f4e5e3;
-  color: var(--c-danger);
-}
-
-.ticket-status--processing {
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
-}
-
-.ticket-status--resolved {
-  background: #e4f1e7;
-  color: #2d6b3d;
+.ticket-detail-status,
+.ticket-item-status {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
 }
 
 .ticket-back {
+  width: auto;
+  height: 32px;
+  align-self: flex-start;
   padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--c-accent);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.ticket-no {
-  margin: 12px 0 0;
-  color: var(--c-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-}
-
-.ticket-detail h2 {
-  margin: 6px 0 0;
-}
-
-.ticket-detail h3 {
-  margin: 22px 0 10px;
-  font-size: 14px;
-}
-
-.ticket-meta {
-  margin: 6px 0 0;
-  color: var(--c-muted);
-  font-size: 12px;
 }
 
 .ticket-content {
-  margin: 14px 0 0;
-  padding: 12px;
-  border-radius: 8px;
-  background: #f7f5f0;
-  font-size: 14px;
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--overlay);
+  color: var(--text);
+  font-size: var(--font-body);
   white-space: pre-wrap;
 }
 
-.ticket-timeline {
+.ticket-subtitle {
+  margin: var(--space-2) 0 0;
+  color: var(--text);
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+
+.timeline {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.ticket-timeline li {
+.timeline li {
   position: relative;
   display: flex;
-  gap: 10px;
-  padding-bottom: 16px;
-  color: #9a9f9c;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  color: var(--text-disabled);
 }
 
-.ticket-timeline li:last-child {
+.timeline li:last-child {
   padding-bottom: 0;
 }
 
-.ticket-timeline li::before {
+.timeline li::before {
   position: absolute;
   top: 12px;
   bottom: 0;
   left: 4px;
   width: 1px;
-  background: var(--c-border);
+  background: var(--line);
   content: '';
 }
 
-.ticket-timeline li:last-child::before {
+.timeline li:last-child::before {
   display: none;
 }
 
-.ticket-dot {
-  flex: none;
+.timeline__dot {
   width: 9px;
   height: 9px;
+  flex: none;
   margin-top: 5px;
-  border: 2px solid var(--c-border);
+  border: 2px solid var(--line);
   border-radius: 50%;
-  background: var(--c-surface);
+  background: var(--surface);
 }
 
-.ticket-timeline li.done {
-  color: var(--c-text);
+.timeline li.done {
+  color: var(--text);
 }
 
-.ticket-timeline li.done .ticket-dot {
-  border-color: var(--c-accent);
-  background: var(--c-accent);
+.timeline li.done .timeline__dot {
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
-.ticket-timeline li.current strong {
-  color: var(--c-accent);
+.timeline li.current strong {
+  color: var(--accent);
 }
 
-.ticket-timeline small {
+.timeline small {
   display: block;
-  margin-top: 1px;
-  color: var(--c-muted);
+  color: var(--text-muted);
   font-size: 11px;
 }
 
 .ticket-replies {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .ticket-reply {
-  padding: 10px 12px;
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  font-size: 14px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
 }
 
 .ticket-reply p {
   margin: 0;
+  font-size: var(--font-body);
 }
 
 .ticket-reply-head {
-  margin-bottom: 4px !important;
-  color: var(--c-muted);
-  font-size: 11px;
-}
-
-.ticket-refresh {
-  margin-top: 16px;
-}
-
-.ticket-state {
-  margin: 16px 0 0;
-  color: var(--c-muted);
-  font-size: 14px;
-}
-
-.ticket-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 20px;
+  margin-bottom: var(--space-1) !important;
+  color: var(--text-muted);
+  font-size: var(--font-sub) !important;
 }
 
 .ticket-item {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  border: 1px solid var(--c-border);
-  border-radius: 10px;
-  background: var(--c-surface);
-  color: var(--c-text);
   text-align: left;
-  cursor: pointer;
-}
-
-.ticket-item-head strong {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 15px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ticket-item-foot {
-  display: block;
-  margin-top: 8px;
-  color: var(--c-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
 }
 </style>

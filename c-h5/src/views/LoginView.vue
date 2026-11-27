@@ -35,46 +35,84 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <section class="surface auth-card" aria-labelledby="login-title">
-    <header class="auth-header">
-      <p class="eyebrow">Premium Member</p>
-      <h1 id="login-title">登录会员账号</h1>
-      <p class="lede">使用手机号和密码查看会员权益</p>
-    </header>
+  <section class="page" aria-labelledby="login-title">
+    <article class="media-card">
+      <div class="cover cover--hero login-cover">
+        <span class="brand-mark" aria-hidden="true">PM</span>
+        <span class="cover__eyebrow">Premium Member</span>
+        <h1 id="login-title" class="cover__title">登录会员账号</h1>
+        <span class="cover__sub">使用手机号和密码查看会员权益</span>
+      </div>
 
-    <div class="auth-form">
-      <Field
-        v-model="phone"
-        name="phone"
-        label="手机号"
-        type="tel"
-        inputmode="numeric"
-        maxlength="11"
-        autocomplete="tel"
-        placeholder="请输入 11 位手机号"
-      />
-      <Field
-        v-model="password"
-        name="password"
-        label="密码"
-        type="password"
-        autocomplete="current-password"
-        placeholder="请输入密码"
-        @keyup.enter="submit"
-      />
+      <div class="card-body auth-form">
+        <Field
+          v-model="phone"
+          name="phone"
+          label="手机号"
+          type="tel"
+          inputmode="numeric"
+          maxlength="11"
+          autocomplete="tel"
+          placeholder="请输入 11 位手机号"
+        />
+        <Field
+          v-model="password"
+          name="password"
+          label="密码"
+          type="password"
+          autocomplete="current-password"
+          placeholder="请输入密码"
+          @keyup.enter="submit"
+        />
 
-      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
 
-      <Button
-        class="submit-button"
-        type="primary"
-        block
-        :loading="loading"
-        loading-text="登录中"
-        @click="submit"
-      >
-        登录
-      </Button>
-    </div>
+        <Button
+          class="submit-button"
+          type="primary"
+          block
+          :loading="loading"
+          loading-text="登录中"
+          @click="submit"
+        >
+          登录
+        </Button>
+      </div>
+    </article>
+
+    <p class="login-note">登录后回到刚才浏览的页面，名额与订单按账号展示。</p>
   </section>
 </template>
+
+<style scoped>
+.login-cover {
+  min-height: 228px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: var(--space-2);
+  place-items: center;
+  border-radius: var(--radius-card);
+  background: var(--accent-gradient);
+  color: var(--accent-deep);
+  font-size: var(--font-section);
+  font-weight: 700;
+}
+
+.auth-form {
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.login-note {
+  margin: 0;
+  padding: 0 var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--font-sub);
+  line-height: 1.6;
+  text-align: center;
+}
+</style>
