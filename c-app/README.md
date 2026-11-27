@@ -23,4 +23,17 @@ App（Android/iOS）：用 HBuilderX 打开本目录运行，或用 uni-app CLI 
 
 构建：`npm run build:h5`、`npm run build:mp-weixin`。
 
-实际安装版本见 `package-lock.json` 与 `package.json`。
+## 实际版本
+
+| 依赖 | 版本 |
+|---|---|
+| @dcloudio/uni-app | 3.0.0-5030420261029002 |
+| @dcloudio/uni-h5 | 3.0.0-5030420261029002 |
+| @dcloudio/uni-mp-weixin | 3.0.0-5030420261029002 |
+| @dcloudio/vite-plugin-uni | 3.0.0-5030420261029002 |
+| Vue | 3.4.21 |
+| Vite | 5.2.8 |
+| TypeScript | 4.9.5 |
+| vue-tsc | 1.8.27 |
+
+2026-11-27 实测：`npm install` 成功，`npm run dev:h5` 监听 `127.0.0.1:5173`，`curl -I` 返回 200；`npm run build:h5` 通过（Compiler version 5.34）。
