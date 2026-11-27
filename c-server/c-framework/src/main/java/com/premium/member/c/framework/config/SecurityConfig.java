@@ -38,7 +38,7 @@ public class SecurityConfig {
             JwtAuthenticationFilter jwtAuthenticationFilter,
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler,
-            @Value("${app.cors.allowed-origins:http://localhost:5174,http://127.0.0.1:5174}") String origins)
+            @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}") String origins)
             throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -52,7 +52,9 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/c/payments/mock/notify").permitAll()
                         .requestMatchers("/c/ai/files/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/c/contents").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/c/plans", "/c/benefits/products",
+                                "/c/ai/templates", "/c/contents")
+                        .permitAll()
                         .requestMatchers("/health", "/actuator/health").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -63,7 +65,7 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${app.cors.allowed-origins:http://localhost:5174,http://127.0.0.1:5174}") String origins) {
+            @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}") String origins) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(
                 Arrays.stream(origins.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList());

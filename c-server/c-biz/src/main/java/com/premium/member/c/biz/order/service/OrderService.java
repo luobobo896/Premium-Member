@@ -12,7 +12,7 @@ import com.premium.member.c.biz.member.entity.PmMember;
 import com.premium.member.c.biz.member.mapper.PmMemberMapper;
 import com.premium.member.c.biz.order.dto.OrderResponse;
 import com.premium.member.c.biz.order.dto.PeriodView;
-import com.premium.member.c.biz.order.dto.PlanResponse;
+import com.premium.member.c.biz.order.dto.PlanCatalogResponse;
 import com.premium.member.c.biz.order.entity.Order;
 import com.premium.member.c.biz.order.entity.PlanVersion;
 import com.premium.member.c.biz.order.mapper.OrderMapper;
@@ -47,8 +47,8 @@ public class OrderService {
         this.providers = providers;
     }
 
-    public List<PlanResponse> plans() {
-        return planMapper.selectOnSale().stream().map(PlanResponse::from).toList();
+    public List<PlanCatalogResponse> plans() {
+        return planMapper.selectOnSale().stream().map(PlanCatalogResponse::from).toList();
     }
 
     @Transactional

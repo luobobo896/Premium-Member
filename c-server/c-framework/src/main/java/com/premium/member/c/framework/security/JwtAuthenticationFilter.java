@@ -2,7 +2,6 @@ package com.premium.member.c.framework.security;
 
 import java.io.IOException;
 
-import com.premium.member.c.common.exception.BusinessException;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -37,7 +36,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(new CUserPrincipal(userId, phone), null, null);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (BusinessException ex) {
+            } catch (RuntimeException ex) {
+                // 公开接口带无效 token 时按游客处理，不中断请求。
                 SecurityContextHolder.clearContext();
             }
         }

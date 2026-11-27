@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.premium.member.c.biz.order.dto.CreateOrderRequest;
 import com.premium.member.c.biz.order.dto.OrderResponse;
-import com.premium.member.c.biz.order.dto.PlanResponse;
+import com.premium.member.c.biz.order.dto.PlanCatalogResponse;
 import com.premium.member.c.biz.order.service.OrderService;
 import com.premium.member.c.common.api.R;
 import com.premium.member.c.framework.security.CUserPrincipal;
@@ -31,7 +31,7 @@ public class COrderController {
     }
 
     @GetMapping("/plans")
-    public R<List<PlanResponse>> plans() {
+    public R<List<PlanCatalogResponse>> plans() {
         return R.ok(orderService.plans());
     }
 

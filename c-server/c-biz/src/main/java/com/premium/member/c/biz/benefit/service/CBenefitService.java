@@ -7,8 +7,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.premium.member.c.biz.benefit.crypto.CardCodeCipher;
+import com.premium.member.c.biz.benefit.dto.BenefitCatalogProduct;
 import com.premium.member.c.biz.benefit.dto.BenefitCenterResponse;
 import com.premium.member.c.biz.benefit.dto.BenefitClaimHistoryItem;
 import com.premium.member.c.biz.benefit.dto.BenefitClaimResult;
@@ -34,6 +36,7 @@ public class CBenefitService {
 
     private static final int QUOTA_PER_PERIOD = 2;
     private static final Set<String> OCCUPIED = Set.of("PROCESSING", "SUCCESS", "UNKNOWN");
+    private static final List<String> COVERS = List.of("benefit", "benefit2", "benefit3");
 
     private final BenefitMapper benefitMapper;
     private final PmMemberMapper memberMapper;
@@ -44,6 +47,18 @@ public class CBenefitService {
         this.benefitMapper = benefitMapper;
         this.memberMapper = memberMapper;
         this.cardCodeCipher = cardCodeCipher;
+    }
+
+    public List<BenefitCatalogProduct> catalog() {
+        List<BenefitProduct> products = benefitMapper.selectActiveProducts();
+        return IntStream.range(0, products.size())
+                .mapToObj(index -> {
+                    BenefitProduct product = products.get(index);
+                    return new BenefitCatalogProduct(product.getSkuCode(), product.getName(),
+                            product.getDescription(), product.getRules(),
+                            COVERS.get(index % COVERS.size()));
+                })
+                .toList();
     }
 
     @Transactional

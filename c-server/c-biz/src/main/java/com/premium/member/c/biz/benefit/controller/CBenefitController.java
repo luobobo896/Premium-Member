@@ -2,6 +2,7 @@ package com.premium.member.c.biz.benefit.controller;
 
 import java.util.List;
 
+import com.premium.member.c.biz.benefit.dto.BenefitCatalogProduct;
 import com.premium.member.c.biz.benefit.dto.BenefitCenterResponse;
 import com.premium.member.c.biz.benefit.dto.BenefitClaimHistoryItem;
 import com.premium.member.c.biz.benefit.dto.BenefitClaimResult;
@@ -30,6 +31,11 @@ public class CBenefitController {
     @GetMapping
     public R<BenefitCenterResponse> center() {
         return R.ok(benefitService.center(SecurityUtils.currentUser().phone()));
+    }
+
+    @GetMapping("/products")
+    public R<List<BenefitCatalogProduct>> products() {
+        return R.ok(benefitService.catalog());
     }
 
     @PostMapping("/{sku}/claim")
