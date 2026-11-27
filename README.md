@@ -67,6 +67,7 @@ jenv exec java -jar c-bootstrap/target/c-bootstrap-0.1.0.jar
 - 部署：`docs/10-deploy.md`
 - 验收记录：`docs/11-acceptance.md`
 - 系统管理：`docs/12-system-management.md`
+- 订单与会员周期：`docs/17-orders.md`
 
 ## 联系与反馈
 

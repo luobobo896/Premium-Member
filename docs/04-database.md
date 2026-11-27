@@ -22,6 +22,10 @@
 | `benefit_product` | 权益商品 SKU |
 | `benefit_card` | 卡密，密文/哈希/掩码存储 |
 | `benefit_claim` | 权益领取单，周期 + SKU 唯一 |
+| `plan_version` | 套餐版本，改价/改额度生成新版本 |
+| `orders` | 会员套餐订单，同账号同用途未完成订单唯一 |
+| `payment_transactions` | 支付交易流水，交易号唯一、回调幂等 |
+| `refunds` | 整单退款申请与审核结果 |
 | `sys_operation_log` | 操作审计日志，AOP 异步写入 |
 
 关系：
