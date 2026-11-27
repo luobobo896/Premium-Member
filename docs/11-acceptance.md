@@ -443,3 +443,74 @@ docs/screenshots/system-audit-filter.png
 ```
 
 保留策略与限制见 `docs/15-audit.md`。
+
+## 审计可靠性修复（item 16，2026-11-27）
+
+基线 `8c9c720`。环境：macOS 15.7.5 arm64，JDK 21.0.9，PostgreSQL 17.11，
+Redis 8.2，后端 `http://127.0.0.1:5320/api`。
+
+构建：
+
+```text
+$ cd admin-server
+$ jenv exec /Users/hanson/work/Env/apache-maven-3.8.8/bin/mvn -q -DskipTests package
+BUILD SUCCESS
+```
+
+重建种子库后：
+
+```text
+users=7  depts=4  roles=6  members=6
+总公司 1 -> 运营部 2 -> 运营二组 6
+技术部 3 为总公司下的并列部门
+```
+
+四账号真实接口（`pageSize=1` 取 `data.total`）：
+
+```text
+admin          members=6  users=7  GET /system/logs=200
+dept_manager   members=3  users=4  GET /system/logs=403 FORBIDDEN
+dept_and_child members=4  users=5  GET /system/logs=403 FORBIDDEN
+self_manager   members=1  users=1  GET /system/logs=403 FORBIDDEN
+```
+
+`DEPT_AND_CHILD` 会员/用户数严格大于 `DEPT` 且小于 `ALL`。
+
+登录审计：
+
+```text
+成功登录 user_id: admin=1 dept_manager=4 dept_and_child=6 self_manager=5
+错误密码      success=0 error_code=INVALID_PASSWORD
+账号不存在    success=0 error_code=ACCOUNT_NOT_FOUND
+账号停用      success=0 error_code=USER_DISABLED
+三类失败 params.password 均为 ***
+```
+
+参数校验审计（响应内容保持原样，第一条字段错误）：
+
+```text
+登录 username 为空       HTTP 400  审计 params=username: 不能为空
+会员 phone/level 非法    HTTP 400  审计 params=username: 不能为空; phone: 手机号格式不正确; level: 会员等级不合法
+登录 JSON 截断          HTTP 400  审计 params=请求参数无法解析
+```
+
+异步队列与告警（`AUDIT_QUEUE_CAPACITY=1`，锁表模拟写库阻塞）：
+
+```text
+8 个并发失败登录 + 1 次计时请求 -> 3 条入库，6 条丢弃
+GET /api/health -> {"audit":{"queueCapacity":1,"dropped":6}}
+WARN Audit queue full, dropped 5 operation logs (total 5)
+写库阻塞期间登录仍 0.080s 返回 403，主流程未被审计拖住
+```
+
+保留期清理（为缩短等待使用 `AUDIT_RETENTION_CRON=*/10 * * * * *`）：
+
+```text
+启动前插入 created_at = now() - 200 days 的 retention_probe -> old=1
+启动后首个 cron 周期 -> deleted=1，最近日志与 old_probe=0
+```
+
+说明：上面两次验证通过环境变量临时缩短队列与 cron；生产默认值仍为
+队列 500、每天 03:00、保留 90 天，见 `docs/15-audit.md`。
+
+本轮未改 admin-web、c-app、c-h5，未重新跑前端构建。

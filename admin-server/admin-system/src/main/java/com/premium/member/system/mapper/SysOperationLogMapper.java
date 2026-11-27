@@ -1,5 +1,7 @@
 package com.premium.member.system.mapper;
 
+import java.time.OffsetDateTime;
+
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -7,6 +9,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.premium.member.system.dto.OperationLogQuery;
 import com.premium.member.system.entity.SysOperationLog;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.util.StringUtils;
 
 @Mapper
@@ -36,4 +40,22 @@ public interface SysOperationLogMapper extends BaseMapper<SysOperationLog> {
         wrapper.orderByDesc(SysOperationLog::getCreatedAt).orderByDesc(SysOperationLog::getId);
         return selectPage(page, wrapper);
     }
+
+    /**
+     * 分批删除指定时间之前的日志。
+     *
+     * @param cutoff 截止时间
+     * @param limit  单批上限
+     * @return 删除行数
+     */
+    @Delete("""
+            DELETE FROM sys_operation_log
+            WHERE id IN (
+                SELECT id FROM sys_operation_log
+                WHERE created_at < #{cutoff}
+                ORDER BY created_at
+                LIMIT #{limit}
+            )
+            """)
+    int deleteBefore(@Param("cutoff") OffsetDateTime cutoff, @Param("limit") int limit);
 }

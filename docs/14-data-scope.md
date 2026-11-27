@@ -36,7 +36,10 @@ CREATE INDEX IF NOT EXISTS idx_pm_member_owner ON pm_member (owner_id);
 ```
 
 `data_scope` 的 CHECK 约束通过 `pg_constraint` 判断后补充，可重复执行。
-`data.sql` 为现有三个角色补齐 `ALL / DEPT / SELF`，并新增两个验收角色。
+`data.sql` 为现有角色补齐 `ALL / DEPT / SELF`，新增 `dept_manager`、
+`self_manager`、`dept_and_child` 三个验收角色，并固化三层部门
+`总公司 -> 运营部 -> 运营二组`。用户分布在不同层级：`dept_manager` /
+`self_manager` / `dept_and_child` 在运营部，`group_user` 在运营二组。
 
 ## 验收账号
 
@@ -46,28 +49,30 @@ CREATE INDEX IF NOT EXISTS idx_pm_member_owner ON pm_member (owner_id);
 |---|---|---|---|
 | `admin` | 总公司 1 | `super_admin` | `ALL` |
 | `dept_manager` | 运营部 2 | `dept_manager` | `DEPT` |
+| `dept_and_child` | 运营部 2 | `dept_and_child` | `DEPT_AND_CHILD` |
 | `self_manager` | 运营部 2 | `self_manager` | `SELF` |
+| `group_user` | 运营二组 6 | `viewer` | `SELF`（仅作为下级部门数据样本） |
 
 种子会员归属：`member001 -> admin`、`member002 -> operator`、`member003 -> viewer`、
-`member004 -> dept_manager`、`member005 -> self_manager`。
+`member004 -> dept_manager`、`member005 -> self_manager`、`member006 -> group_user`。
 
 ## 实测
 
 2026-11-27，真实接口：
 
 ```text
-admin        members total=4  users total=5
-dept_manager members total=2  users total=3
-self_manager members total=1  users total=1
+admin          members total=6  users total=7
+dept_manager   members total=3  users total=4   (DEPT)
+dept_and_child members total=4  users total=5   (DEPT_AND_CHILD)
+self_manager   members total=1  users total=1
 ```
 
-`DEPT_AND_CHILD` 用临时部门「运营二组」+ 用户 + 会员验证：
+严格关系（会员、用户）：`DEPT 3 < DEPT_AND_CHILD 4 < ALL 6`、
+`DEPT 4 < DEPT_AND_CHILD 5 < ALL 7`。三个非超管账号访问
+`GET /system/logs` 均返回 403 `FORBIDDEN`。
 
-```text
-dept_manager 范围 DEPT            -> users=3 members=2
-改为 DEPT_AND_CHILD                -> users=4 members=3
-改回 DEPT                          -> users=3
-```
+`DEPT_AND_CHILD` 不再依赖临时数据：`dept_and_child` 属于运营部 2，
+可见运营部及其子部门运营二组 6 的用户与会员；`dept_manager` 仅可见运营部 2。
 
 越权直查：
 

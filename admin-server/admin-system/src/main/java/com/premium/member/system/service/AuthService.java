@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import com.premium.member.common.exception.BusinessException;
 import com.premium.member.common.exception.ErrorCode;
+import com.premium.member.framework.audit.AuditContext;
 import com.premium.member.framework.cache.PermissionCache;
 import com.premium.member.framework.cache.TokenStore;
 import com.premium.member.framework.security.AccessClaims;
@@ -69,10 +70,21 @@ public class AuthService {
             captchaService.validate(request.captchaId(), request.captchaCode());
         }
         SysUser user = userMapper.selectByUsername(request.username());
-        if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (user == null) {
+            AuditContext.failure("ACCOUNT_NOT_FOUND");
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
-        ensureActive(user);
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            AuditContext.failure("INVALID_PASSWORD");
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+        }
+        try {
+            ensureActive(user);
+        } catch (BusinessException ex) {
+            AuditContext.failure("USER_DISABLED");
+            throw ex;
+        }
+        AuditContext.authenticated(user.getId());
 
         AuthUser authUser = toAuthUser(user);
         TokenValue accessToken = tokenService.createAccessToken(authUser);

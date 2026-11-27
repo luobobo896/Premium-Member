@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.premium.member.common.exception.BusinessException;
 import com.premium.member.framework.audit.AuditLog;
+import com.premium.member.framework.audit.AuditContext;
 import com.premium.member.framework.security.AuthenticatedUser;
 import com.premium.member.framework.security.SecurityUtils;
 import com.premium.member.system.entity.SysOperationLog;
@@ -50,6 +51,7 @@ public class OperationLogAspect {
 
     @Around("@annotation(auditLog)")
     public Object around(ProceedingJoinPoint joinPoint, AuditLog auditLog) throws Throwable {
+        AuditContext.clear();
         long start = System.currentTimeMillis();
         Throwable failure = null;
         try {
@@ -58,7 +60,11 @@ public class OperationLogAspect {
             failure = throwable;
             throw throwable;
         } finally {
-            write(joinPoint, auditLog, System.currentTimeMillis() - start, failure);
+            try {
+                write(joinPoint, auditLog, System.currentTimeMillis() - start, failure);
+            } finally {
+                AuditContext.clear();
+            }
         }
     }
 
@@ -67,13 +73,18 @@ public class OperationLogAspect {
             String params = buildParams(joinPoint);
             AuthenticatedUser user = currentUser();
             SysOperationLog operationLog = new SysOperationLog();
-            operationLog.setUserId(user == null ? null : user.userId());
+            Long userId = AuditContext.userId();
+            if (user != null) {
+                userId = user.userId();
+            }
+            operationLog.setUserId(userId);
             operationLog.setUsername(user == null ? paramUsername(params) : user.username());
             operationLog.setModule(auditLog.module());
             operationLog.setAction(auditLog.action());
             operationLog.setParams(params);
             operationLog.setSuccess(failure == null ? 1 : 0);
-            operationLog.setErrorCode(errorCode(failure));
+            String contextError = AuditContext.errorCode();
+            operationLog.setErrorCode(contextError == null ? errorCode(failure) : contextError);
             operationLog.setCostMs(costMs);
             operationLog.setCreatedAt(OffsetDateTime.now());
             fillRequest(operationLog);

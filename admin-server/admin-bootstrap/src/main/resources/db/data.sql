@@ -3,7 +3,8 @@
 INSERT INTO sys_dept (id, parent_id, name, leader, phone, sort, status) VALUES
     (1, 0, '总公司', 'Admin', '13800000001', 1, 1),
     (2, 1, '运营部', 'Operator', '13800000002', 2, 1),
-    (3, 1, '技术部', 'Viewer', '13800000003', 3, 1)
+    (3, 1, '技术部', 'Viewer', '13800000003', 3, 1),
+    (6, 2, '运营二组', 'GroupUser', '13800000006', 1, 1)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_role (id, code, name, data_scope, status, sort, remark) VALUES
@@ -11,12 +12,15 @@ INSERT INTO sys_role (id, code, name, data_scope, status, sort, remark) VALUES
     (2, 'operator', '运营人员', 'DEPT', 1, 2, '会员日常运营'),
     (3, 'viewer', '只读人员', 'SELF', 1, 3, '只读查询'),
     (4, 'dept_manager', '部门管理员', 'DEPT', 1, 4, '仅本部门会员与用户'),
-    (5, 'self_manager', '个人管理员', 'SELF', 1, 5, '仅本人数据')
+    (5, 'self_manager', '个人管理员', 'SELF', 1, 5, '仅本人数据'),
+    (6, 'dept_and_child', '部门及下级管理员', 'DEPT_AND_CHILD', 1, 6, '本部门及下级部门')
 ON CONFLICT (id) DO NOTHING;
 
 UPDATE sys_role SET data_scope = 'ALL' WHERE code = 'super_admin' AND data_scope <> 'ALL';
 UPDATE sys_role SET data_scope = 'DEPT' WHERE code = 'operator' AND data_scope <> 'DEPT';
 UPDATE sys_role SET data_scope = 'SELF' WHERE code = 'viewer' AND data_scope <> 'SELF';
+UPDATE sys_role SET data_scope = 'DEPT_AND_CHILD'
+WHERE code = 'dept_and_child' AND data_scope <> 'DEPT_AND_CHILD';
 
 INSERT INTO sys_permission (id, code, name, type, description) VALUES
     (1, 'dashboard:view', '查看仪表盘', 'API', '访问仪表盘页面'),
@@ -115,10 +119,16 @@ INSERT INTO sys_user (id, username, password_hash, real_name, avatar, descriptio
     (4, 'dept_manager', '$2y$10$rFKgXFX2M13lJ1RCg4KZJOrxRPQQdDZDlmQzWyl7HhYU1pD04qH8K',
      'Dept Manager', '', '部门数据权限验收账号', '/members', 'dept_manager@example.com', '13800000004', 2, 1),
     (5, 'self_manager', '$2y$10$rFKgXFX2M13lJ1RCg4KZJOrxRPQQdDZDlmQzWyl7HhYU1pD04qH8K',
-     'Self Manager', '', '个人数据权限验收账号', '/members', 'self_manager@example.com', '13800000005', 2, 1)
+     'Self Manager', '', '个人数据权限验收账号', '/members', 'self_manager@example.com', '13800000005', 2, 1),
+    (6, 'dept_and_child', '$2y$10$rFKgXFX2M13lJ1RCg4KZJOrxRPQQdDZDlmQzWyl7HhYU1pD04qH8K',
+     'Dept And Child', '', '本部门及下级部门验收账号', '/members', 'dept_and_child@example.com',
+     '13800000006', 2, 1),
+    (7, 'group_user', '$2y$10$rFKgXFX2M13lJ1RCg4KZJOrxRPQQdDZDlmQzWyl7HhYU1pD04qH8K',
+     'Group User', '', '运营二组组员', '/members', 'group_user@example.com', '13800000007', 6, 1)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO sys_user_role (user_id, role_id) VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5)
+INSERT INTO sys_user_role (user_id, role_id) VALUES
+    (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6), (7, 3)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)
@@ -148,6 +158,12 @@ SELECT 5, id FROM sys_permission WHERE code IN (
 )
 ON CONFLICT DO NOTHING;
 
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 6, id FROM sys_permission WHERE code IN (
+    'dashboard:view', 'member:list', 'member:read', 'system:user:list'
+)
+ON CONFLICT DO NOTHING;
+
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 1, id FROM sys_menu
 ON CONFLICT DO NOTHING;
@@ -168,6 +184,10 @@ INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 5, id FROM sys_menu WHERE id IN (1, 2, 3, 10, 11, 15, 20, 24)
 ON CONFLICT DO NOTHING;
 
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT 6, id FROM sys_menu WHERE id IN (1, 2, 3, 10, 11, 15, 20, 24)
+ON CONFLICT DO NOTHING;
+
 INSERT INTO pm_member (id, member_no, username, owner_id, nickname, phone, level, points, balance, status,
                        joined_at, remark) VALUES
     (1, 'M202611270001', 'member001', 1, '张三', '13900000001', 'GOLD', 1200, 88.50, 1,
@@ -179,10 +199,12 @@ INSERT INTO pm_member (id, member_no, username, owner_id, nickname, phone, level
     (4, 'M202611270004', 'member004', 4, '部门会员', '13900000004', 'SILVER', 100, 0.00, 1,
      now() - INTERVAL '5 days', 'DEPT 验收样例'),
     (5, 'M202611270005', 'member005', 5, '个人会员', '13900000005', 'BASIC', 10, 0.00, 1,
-     now() - INTERVAL '2 days', 'SELF 验收样例')
+     now() - INTERVAL '2 days', 'SELF 验收样例'),
+    (6, 'M202611270006', 'member006', 7, '组员会员', '13900000006', 'BASIC', 5, 0.00, 1,
+     now() - INTERVAL '1 days', 'DEPT_AND_CHILD 验收样例')
 ON CONFLICT (id) DO NOTHING;
 
-UPDATE pm_member SET owner_id = id WHERE owner_id IS NULL AND id IN (1, 2, 3, 4, 5);
+UPDATE pm_member SET owner_id = id WHERE owner_id IS NULL AND id IN (1, 2, 3, 4, 5, 6);
 
 SELECT setval(pg_get_serial_sequence('sys_dept', 'id'), (SELECT MAX(id) FROM sys_dept));
 SELECT setval(pg_get_serial_sequence('sys_role', 'id'), (SELECT MAX(id) FROM sys_role));
