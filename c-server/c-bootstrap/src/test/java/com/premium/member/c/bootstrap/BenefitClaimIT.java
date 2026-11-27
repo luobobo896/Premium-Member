@@ -9,7 +9,7 @@ class BenefitClaimIT extends CIntegrationIT {
 
     @Test
     void quotaSameSkuAndCardStockRules() {
-        Account account = createAccount("137" + suffix(), "ITBENEFIT" + System.nanoTime());
+        Account account = createAccount("137" + uniqueSuffix(), "ITBENEFIT" + uniqueSuffix());
         long periodId = createActivePeriod(account.memberId(), 1);
         insertCard("COFFEE_30", "COFFEE-IT-001");
 
@@ -45,9 +45,5 @@ class BenefitClaimIT extends CIntegrationIT {
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM benefit_card WHERE status = 'CLAIMED' AND product_sku IN ('COFFEE_30','MOVIE_1')",
                 Long.class)).isEqualTo(2);
-    }
-
-    private String suffix() {
-        return String.valueOf(System.nanoTime()).substring(6, 14);
     }
 }

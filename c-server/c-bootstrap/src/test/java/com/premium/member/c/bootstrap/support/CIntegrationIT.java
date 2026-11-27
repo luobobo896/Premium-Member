@@ -10,6 +10,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -50,6 +51,7 @@ public abstract class CIntegrationIT {
     protected static final String PASSWORD = "Test123456";
     private static final String CARD_SECRET = "test-benefit-card-secret";
     private static final Path DB_DIR = locateAdminDb();
+    private static final AtomicLong SEQUENCE = new AtomicLong();
 
     private static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
@@ -196,6 +198,12 @@ public abstract class CIntegrationIT {
 
     protected long templateId(String code) {
         return jdbc.queryForObject("SELECT id FROM ai_template WHERE code = ?", Long.class, code);
+    }
+
+    protected String uniqueSuffix() {
+        long value = Math.floorMod(System.nanoTime() + SEQUENCE.incrementAndGet() * 1000L,
+                100_000_000L);
+        return String.format("%08d", value);
     }
 
     protected void insertCard(String sku, String code) {

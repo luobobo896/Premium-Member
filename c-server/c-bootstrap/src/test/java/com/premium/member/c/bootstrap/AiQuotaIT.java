@@ -18,7 +18,7 @@ class AiQuotaIT extends CIntegrationIT {
 
     @Test
     void reserveSettleReleaseAndIdempotency() throws Exception {
-        Account account = createAccount("136" + suffix(), "ITAI" + System.nanoTime());
+        Account account = createAccount("136" + uniqueSuffix(), "ITAI" + uniqueSuffix());
         long periodId = createActivePeriod(account.memberId(), 1);
 
         quotaService.reserve(periodId, "IMAGE", 0, "IT-RESERVE-" + periodId, "IT");
@@ -62,7 +62,7 @@ class AiQuotaIT extends CIntegrationIT {
         assertThat(ledgerCountForTask(successTaskNo, "RESERVE")).isEqualTo(1);
         assertThat(ledgerCountForTask(successTaskNo, "SETTLE")).isEqualTo(1);
 
-        Account other = createAccount("135" + suffix(), "ITAI2" + System.nanoTime());
+        Account other = createAccount("135" + uniqueSuffix(), "ITAI2" + uniqueSuffix());
         HttpResult conflict = post("/c/ai/tasks", request, other.token());
         assertThat(conflict.status()).isEqualTo(409);
         assertThat(conflict.bizCode()).isEqualTo("AI_IDEMPOTENCY_CONFLICT");
@@ -70,7 +70,7 @@ class AiQuotaIT extends CIntegrationIT {
 
     @Test
     void exhaustedQuotaRejectsCreate() {
-        Account account = createAccount("134" + suffix(), "ITAI0" + System.nanoTime());
+        Account account = createAccount("134" + uniqueSuffix(), "ITAI0" + uniqueSuffix());
         long planId = createPlan("ITZERO" + System.nanoTime(), 0, 0);
         createActivePeriod(account.memberId(), planId);
         long assetId = createInputAsset(account.memberId());
@@ -119,9 +119,5 @@ class AiQuotaIT extends CIntegrationIT {
             Thread.sleep(250);
         }
         throw new AssertionError("task " + taskNo + " did not reach " + expected);
-    }
-
-    private String suffix() {
-        return String.valueOf(System.nanoTime()).substring(6, 14);
     }
 }

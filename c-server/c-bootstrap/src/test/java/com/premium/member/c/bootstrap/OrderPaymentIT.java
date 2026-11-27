@@ -11,7 +11,7 @@ class OrderPaymentIT extends CIntegrationIT {
 
     @Test
     void duplicateOrderAndDuplicateCallbackAreIdempotent() {
-        Account account = createAccount("138" + suffix(), "ITORDER" + System.nanoTime());
+        Account account = createAccount("138" + uniqueSuffix(), "ITORDER" + uniqueSuffix());
         Map<String, Object> request = Map.of("planVersionId", 1, "source", "H5");
 
         HttpResult created = post("/c/orders", request, account.token());
@@ -46,9 +46,5 @@ class OrderPaymentIT extends CIntegrationIT {
         HttpResult detail = get("/c/orders/" + orderNo, account.token());
         assertThat(detail.status()).isEqualTo(200);
         assertThat(detail.data().path("status").asText()).isEqualTo("PAID");
-    }
-
-    private String suffix() {
-        return String.valueOf(System.nanoTime()).substring(6, 14);
     }
 }

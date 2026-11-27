@@ -13,8 +13,8 @@ class AuthPermissionIT extends AdminIntegrationIT {
 
     @Test
     void loginRefreshAndUnauthorized() {
-        Login admin = login("admin", "Admin@123456");
-        HttpResult memberList = get("/members?page=1&pageSize=1", admin.token());
+        Login operator = login("operator", "Operator@123456");
+        HttpResult memberList = get("/members?page=1&pageSize=1", operator.token());
         assertThat(memberList.status()).isEqualTo(200);
         assertThat(memberList.json().path("data").path("items").isArray()).isTrue();
 
@@ -22,7 +22,7 @@ class AuthPermissionIT extends AdminIntegrationIT {
         assertThat(anonymous.status()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
         assertThat(anonymous.bizCode()).isEqualTo("UNAUTHORIZED");
 
-        HttpResult refresh = post("/auth/refresh", null, null, admin.cookie());
+        HttpResult refresh = post("/auth/refresh", null, null, operator.cookie());
         assertThat(refresh.status()).isEqualTo(200);
         assertThat(refresh.text()).startsWith("eyJ");
         HttpResult codes = get("/auth/codes", refresh.text());
@@ -38,10 +38,10 @@ class AuthPermissionIT extends AdminIntegrationIT {
         assertThat(noCookieRefresh.status()).isEqualTo(403);
         assertThat(noCookieRefresh.bizCode()).isEqualTo("REFRESH_TOKEN_INVALID");
 
-        HttpResult logout = post("/auth/logout", null, admin.token(), admin.cookie());
+        HttpResult logout = post("/auth/logout", null, operator.token(), operator.cookie());
         assertThat(logout.status()).isEqualTo(200);
         assertThat(logout.headers().getFirst(HttpHeaders.SET_COOKIE)).contains("Max-Age=0");
-        HttpResult afterLogout = post("/auth/refresh", null, null, admin.cookie());
+        HttpResult afterLogout = post("/auth/refresh", null, null, operator.cookie());
         assertThat(afterLogout.status()).isEqualTo(403);
         assertThat(afterLogout.bizCode()).isEqualTo("REFRESH_TOKEN_INVALID");
     }
