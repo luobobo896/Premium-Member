@@ -121,6 +121,14 @@ export interface AiTask {
   type: AiType;
 }
 
+export interface ContentItem {
+  key: string;
+  locale: string;
+  contentJson: string;
+  versionNo: number;
+  publishAt: string;
+}
+
 interface ApiResponse<T> {
   code: number;
   data: T;
@@ -155,7 +163,7 @@ export function clearToken(): void {
 function request<T>(
   path: string,
   method: 'DELETE' | 'GET' | 'POST',
-  data?: unknown,
+  data?: object,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
@@ -244,6 +252,14 @@ export function createAiTask(data: {
 
 export function deleteAiWork(id: number): Promise<void> {
   return request(`/c/ai/works/${id}`, 'DELETE');
+}
+
+export function getContents(keys?: string[], locale = 'zh-CN'): Promise<ContentItem[]> {
+  const search = [`locale=${encodeURIComponent(locale)}`];
+  if (keys?.length) {
+    search.push(`keys=${encodeURIComponent(keys.join(','))}`);
+  }
+  return request(`/c/contents?${search.join('&')}`, 'GET');
 }
 
 export function uploadAiAsset(filePath: string): Promise<AiAsset> {

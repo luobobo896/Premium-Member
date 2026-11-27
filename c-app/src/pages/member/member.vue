@@ -5,6 +5,7 @@ import { onShow } from '@dcloudio/uni-app';
 import {
   ApiError,
   clearToken,
+  getContents,
   getInfo,
   getMember,
   getToken,
@@ -25,6 +26,9 @@ const member = ref<MemberInfo | null>(null);
 const loading = ref(true);
 const error = ref('');
 const loggingOut = ref(false);
+const banners = ref<Array<{ imageUrl?: string; title?: string }>>([
+  { title: '会员专属权益' },
+]);
 
 function levelName(level: string): string {
   return LEVELS[level] ?? level;
@@ -82,6 +86,22 @@ async function signOut(): Promise<void> {
   }
 }
 
+async function loadBanners(): Promise<void> {
+  try {
+    const items = await getContents(['BANNER']);
+    const item = items.find((row) => row.key === 'BANNER');
+    if (!item) return;
+    const config = JSON.parse(item.contentJson) as {
+      items?: Array<{ imageUrl?: string; title?: string }>;
+    };
+    if (config.items?.length) {
+      banners.value = config.items;
+    }
+  } catch {
+    // 无配置或 JSON 异常时保留默认轮播。
+  }
+}
+
 function openBenefit(): void {
   uni.navigateTo({ url: '/pages/benefit/benefit' });
 }
@@ -90,11 +110,34 @@ function openAi(): void {
   uni.navigateTo({ url: '/pages/ai/ai' });
 }
 
-onShow(load);
+onShow(() => {
+  load();
+  loadBanners();
+});
 </script>
 
 <template>
   <view class="screen">
+    <swiper
+      v-if="banners.length"
+      autoplay
+      circular
+      class="banner"
+      indicator-dots
+    >
+      <swiper-item v-for="(banner, index) in banners" :key="index">
+        <image
+          v-if="banner.imageUrl"
+          class="banner-image"
+          mode="aspectFill"
+          :src="banner.imageUrl"
+        />
+        <view v-else class="banner-fallback">
+          <text class="banner-title">{{ banner.title || '会员专属权益' }}</text>
+          <text class="banner-sub">Premium Member</text>
+        </view>
+      </swiper-item>
+    </swiper>
     <view class="card">
       <view class="header">
         <view>
@@ -154,9 +197,48 @@ onShow(load);
   min-height: 100vh;
   padding: 48rpx 32rpx;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 28rpx;
   background: #f4f2ed;
+}
+
+.banner {
+  width: 100%;
+  max-width: 680rpx;
+  height: 240rpx;
+  overflow: hidden;
+  border-radius: 24rpx;
+}
+
+.banner-image {
+  width: 100%;
+  height: 240rpx;
+}
+
+.banner-fallback {
+  width: 100%;
+  height: 240rpx;
+  padding: 48rpx 40rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: linear-gradient(135deg, #2f6b5f, #7d9e8c);
+}
+
+.banner-title {
+  color: #fffdf9;
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.banner-sub {
+  margin-top: 12rpx;
+  color: rgba(255, 253, 249, 0.78);
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
 }
 
 .card {

@@ -111,6 +111,14 @@ export interface OrderInfo {
   status: string;
 }
 
+export interface ContentItem {
+  key: string;
+  locale: string;
+  contentJson: string;
+  versionNo: number;
+  publishAt: string;
+}
+
 export type AiType = 'DRESSUP' | 'PHOTO' | 'VIDEO';
 
 export interface AiTemplate {
@@ -349,4 +357,11 @@ export async function logout(): Promise<void> {
   } finally {
     clearAccessToken();
   }
+}
+
+export function getContents(keys?: string[], locale = 'zh-CN'): Promise<ContentItem[]> {
+  const search = new URLSearchParams();
+  if (keys?.length) search.set('keys', keys.join(','));
+  search.set('locale', locale);
+  return request<ContentItem[]>(`/c/contents?${search.toString()}`);
 }
