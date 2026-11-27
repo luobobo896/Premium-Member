@@ -9,6 +9,12 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import com.premium.member.c.common.exception.BusinessException;
+import com.premium.member.c.common.exception.ErrorCode;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -18,13 +24,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class CardCodeCipher {
 
+    private static final Logger log = LoggerFactory.getLogger(CardCodeCipher.class);
     private static final int IV_LENGTH = 12;
     private static final int TAG_BITS = 128;
 
     private final SecretKeySpec key;
+    private final Counter decryptFailures;
 
-    public CardCodeCipher(@Value("${app.benefit.card-secret}") String secret) {
+    public CardCodeCipher(@Value("${app.benefit.card-secret}") String secret, MeterRegistry meterRegistry) {
         this.key = new SecretKeySpec(sha256(secret), "AES");
+        this.decryptFailures = Counter.builder("benefit.card.decrypt.failures")
+                .description("卡密解密失败次数")
+                .register(meterRegistry);
     }
 
     public String decrypt(String cipherText) {
@@ -36,8 +47,11 @@ public class CardCodeCipher {
             cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
             byte[] plain = cipher.doFinal(payload, IV_LENGTH, payload.length - IV_LENGTH);
             return new String(plain, StandardCharsets.UTF_8);
-        } catch (GeneralSecurityException | IllegalArgumentException ex) {
-            throw new IllegalStateException("卡密解密失败", ex);
+        } catch (GeneralSecurityException | IllegalArgumentException | ArrayIndexOutOfBoundsException ex) {
+            decryptFailures.increment();
+            log.warn("卡密解密失败，按卡片失效处理：{}，累计 {} 次",
+                    ex.getClass().getSimpleName(), (long) decryptFailures.count());
+            throw new BusinessException(ErrorCode.BENEFIT_CARD_INVALID);
         }
     }
 

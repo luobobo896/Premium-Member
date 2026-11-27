@@ -46,9 +46,11 @@ public class CBenefitService {
         this.cardCodeCipher = cardCodeCipher;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public BenefitCenterResponse center(String phone) {
         PmMember member = requireActiveMember(phone);
+        benefitMapper.expireEnded(member.getId());
+        benefitMapper.activateDuePending(member.getId());
         PmMemberPeriod period = benefitMapper.selectActivePeriod(member.getId());
         if (period == null) {
             return new BenefitCenterResponse(null, QUOTA_PER_PERIOD, 0, QUOTA_PER_PERIOD, List.of());
@@ -88,9 +90,15 @@ public class CBenefitService {
     @Transactional
     public BenefitClaimResult claim(String phone, String skuCode) {
         PmMember member = requireActiveMember(phone);
+        benefitMapper.expireEnded(member.getId());
+        benefitMapper.activateDuePending(member.getId());
         PmMemberPeriod period = benefitMapper.lockActivePeriod(member.getId());
         if (period == null) {
             throw new BusinessException(ErrorCode.BENEFIT_PERIOD_NOT_FOUND);
+        }
+        if (period.getOrderId() != null && "REFUNDING".equals(
+                benefitMapper.selectOrderStatus(period.getOrderId()))) {
+            throw new BusinessException(ErrorCode.ORDER_REFUNDING);
         }
         String sku = skuCode.trim().toUpperCase(Locale.ROOT);
         BenefitClaim existing = benefitMapper.selectClaim(period.getId(), sku);

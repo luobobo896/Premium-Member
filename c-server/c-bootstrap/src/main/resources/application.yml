@@ -32,6 +32,12 @@ app:
     max-age: ${C_JWT_REFRESH_TTL:30d}
   benefit:
     card-secret: ${BENEFIT_CARD_SECRET:premium-member-dev-only-card-secret}
+  payment:
+    wechat:
+      mch-id: ${WECHAT_PAY_MCH_ID:}
+      api-v3-key: ${WECHAT_PAY_API_V3_KEY:}
+      private-key-path: ${WECHAT_PAY_PRIVATE_KEY_PATH:}
+      serial-no: ${WECHAT_PAY_SERIAL_NO:}
 
 mybatis-plus:
   configuration:

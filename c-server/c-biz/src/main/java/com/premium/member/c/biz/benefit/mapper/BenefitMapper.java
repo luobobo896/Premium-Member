@@ -42,6 +42,25 @@ public interface BenefitMapper {
             """)
     PmMemberPeriod selectActivePeriod(@Param("memberId") long memberId);
 
+    @Update("""
+            UPDATE pm_member_period SET status = 'EXPIRED', updated_at = now()
+            WHERE member_id = #{memberId} AND status = 'ACTIVE' AND end_at <= now()
+            """)
+    int expireEnded(@Param("memberId") long memberId);
+
+    @Update("""
+            UPDATE pm_member_period p SET status = 'ACTIVE', updated_at = now()
+            WHERE p.member_id = #{memberId} AND p.status = 'PENDING' AND p.start_at <= now()
+              AND NOT EXISTS (
+                  SELECT 1 FROM pm_member_period a
+                  WHERE a.member_id = #{memberId} AND a.status = 'ACTIVE' AND a.id <> p.id
+              )
+            """)
+    int activateDuePending(@Param("memberId") long memberId);
+
+    @Select("SELECT status FROM orders WHERE id = #{orderId}")
+    String selectOrderStatus(@Param("orderId") long orderId);
+
     @Select("""
             SELECT * FROM benefit_product
             WHERE status = 1
