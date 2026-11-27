@@ -53,7 +53,14 @@ INSERT INTO sys_permission (id, code, name, type, description) VALUES
     (28, 'benefit:card:list', '卡密列表', 'API', '查询卡密（脱敏）'),
     (29, 'benefit:card:import', '导入卡密', 'BUTTON', '批量导入卡密'),
     (30, 'benefit:claim:list', '领取单列表', 'API', '查询权益领取单'),
-    (31, 'benefit:claim:review', '人工核实', 'BUTTON', '人工核实、补偿或撤销领取单')
+    (31, 'benefit:claim:review', '人工核实', 'BUTTON', '人工核实、补偿或撤销领取单'),
+    (32, 'plan:list', '套餐列表', 'API', '查询套餐版本'),
+    (33, 'plan:create', '新增套餐', 'BUTTON', '新增套餐或生成新版本'),
+    (34, 'plan:update', '编辑套餐', 'BUTTON', '修改套餐并生成新版本'),
+    (35, 'plan:delete', '下架套餐', 'BUTTON', '下架当前在售套餐'),
+    (36, 'order:list', '订单列表', 'API', '分页查询订单与详情'),
+    (37, 'order:refund', '退款审核', 'BUTTON', '审核整单退款'),
+    (38, 'payment:list', '支付流水', 'API', '查询支付交易流水')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, title, icon,
@@ -129,7 +136,21 @@ INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, titl
     (406, 40, 'BenefitClaimList', '', NULL, NULL, 'button', '查看领取单',
      NULL, 'benefit:claim:list', 6, 1, 1, 0, 0, 0),
     (407, 40, 'BenefitClaimReview', '', NULL, NULL, 'button', '人工核实领取单',
-     NULL, 'benefit:claim:review', 7, 1, 1, 0, 0, 0)
+     NULL, 'benefit:claim:review', 7, 1, 1, 0, 0, 0),
+    (50, 0, 'Trade', '/trade', '/trade/index', NULL, 'menu', '交易管理',
+     'lucide:receipt', 'plan:list', 16, 1, 1, 0, 0, 0),
+    (501, 50, 'PlanCreate', '', NULL, NULL, 'button', '新增套餐/版本',
+     NULL, 'plan:create', 1, 1, 1, 0, 0, 0),
+    (502, 50, 'PlanUpdate', '', NULL, NULL, 'button', '编辑套餐',
+     NULL, 'plan:update', 2, 1, 1, 0, 0, 0),
+    (503, 50, 'PlanDelete', '', NULL, NULL, 'button', '下架套餐',
+     NULL, 'plan:delete', 3, 1, 1, 0, 0, 0),
+    (504, 50, 'OrderList', '', NULL, NULL, 'button', '查看订单',
+     NULL, 'order:list', 4, 1, 1, 0, 0, 0),
+    (505, 50, 'OrderRefund', '', NULL, NULL, 'button', '退款审核',
+     NULL, 'order:refund', 5, 1, 1, 0, 0, 0),
+    (506, 50, 'PaymentList', '', NULL, NULL, 'button', '查看支付流水',
+     NULL, 'payment:list', 6, 1, 1, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_user (id, username, password_hash, real_name, avatar, description, home_path,
@@ -243,6 +264,21 @@ INSERT INTO benefit_product (id, sku_code, name, description, rules, status, sor
      '在个人中心-云存储页面输入卡密开通；到期不自动续费。', 1, 3)
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO plan_version (id, code, name, price_cents, duration_days, ai_image_quota,
+                          ai_video_quota, benefit_quota, status, version_no) VALUES
+    (1, 'PREMIUM_30', 'AI 创作会员 · 30 天', 5900, 30, 20, 3, 2, 1, 1)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission
+WHERE code IN ('plan:list', 'plan:create', 'plan:update', 'plan:delete',
+               'order:list', 'order:refund', 'payment:list')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT 1, id FROM sys_menu WHERE id BETWEEN 50 AND 506
+ON CONFLICT DO NOTHING;
+
 SELECT setval(pg_get_serial_sequence('sys_dept', 'id'), (SELECT MAX(id) FROM sys_dept));
 SELECT setval(pg_get_serial_sequence('sys_role', 'id'), (SELECT MAX(id) FROM sys_role));
 SELECT setval(pg_get_serial_sequence('sys_permission', 'id'), (SELECT MAX(id) FROM sys_permission));
@@ -251,3 +287,4 @@ SELECT setval(pg_get_serial_sequence('sys_user', 'id'), (SELECT MAX(id) FROM sys
 SELECT setval(pg_get_serial_sequence('pm_member', 'id'), (SELECT MAX(id) FROM pm_member));
 SELECT setval(pg_get_serial_sequence('pm_member_period', 'id'), (SELECT MAX(id) FROM pm_member_period));
 SELECT setval(pg_get_serial_sequence('benefit_product', 'id'), (SELECT MAX(id) FROM benefit_product));
+SELECT setval(pg_get_serial_sequence('plan_version', 'id'), (SELECT MAX(id) FROM plan_version));
