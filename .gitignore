@@ -29,6 +29,8 @@ logs/
 data/
 deploy/pgdata/
 deploy/redisdata/
+deploy/certs/
+deploy/backups/
 
 # Test artifacts
 coverage/

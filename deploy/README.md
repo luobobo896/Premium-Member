@@ -1,6 +1,7 @@
 # deploy
 
-本地依赖与反向代理示例。
+本地开发依赖见 `docker-compose.yml`；生产编排见 `docker-compose.prod.yml`，
+首次部署、升级、回滚与备份恢复见 `docs/20-deploy.md`。
 
 ## 启动依赖
 

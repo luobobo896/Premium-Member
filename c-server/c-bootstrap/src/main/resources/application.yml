@@ -31,7 +31,7 @@ app:
     refresh-ttl: ${C_JWT_REFRESH_TTL:30d}
   cookie:
     name: c_refresh
-    path: /c/auth
+    path: ${C_COOKIE_PATH:/c/auth}
     secure: ${C_COOKIE_SECURE:false}
     max-age: ${C_JWT_REFRESH_TTL:30d}
   benefit:
