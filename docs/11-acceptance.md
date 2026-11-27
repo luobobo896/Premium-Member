@@ -513,4 +513,7 @@ WARN Audit queue full, dropped 5 operation logs (total 5)
 说明：上面两次验证通过环境变量临时缩短队列与 cron；生产默认值仍为
 队列 500、每天 03:00、保留 90 天，见 `docs/15-audit.md`。
 
+`ConstraintViolationException` 分支已在全局异常处理里实现，但现有控制器
+没有 `@Validated`，本轮没有真实触发点，未单独造数。
+
 本轮未改 admin-web、c-app、c-h5，未重新跑前端构建。
