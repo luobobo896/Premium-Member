@@ -60,7 +60,13 @@ INSERT INTO sys_permission (id, code, name, type, description) VALUES
     (35, 'plan:delete', '下架套餐', 'BUTTON', '下架当前在售套餐'),
     (36, 'order:list', '订单列表', 'API', '分页查询订单与详情'),
     (37, 'order:refund', '退款审核', 'BUTTON', '审核整单退款'),
-    (38, 'payment:list', '支付流水', 'API', '查询支付交易流水')
+    (38, 'payment:list', '支付流水', 'API', '查询支付交易流水'),
+    (39, 'ai:template:list', 'AI 模板列表', 'API', '查询 AI 模板'),
+    (40, 'ai:template:create', '新增 AI 模板', 'BUTTON', '新增 AI 模板'),
+    (41, 'ai:template:update', '编辑 AI 模板', 'BUTTON', '编辑或上下架 AI 模板'),
+    (42, 'ai:template:delete', '删除 AI 模板', 'BUTTON', '删除 AI 模板'),
+    (43, 'ai:task:list', 'AI 任务查询', 'API', '分页查询 AI 任务'),
+    (44, 'ai:usage:list', 'AI 用量日报', 'API', '查询 AI 每日用量')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, title, icon,
@@ -150,7 +156,19 @@ INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, titl
     (505, 50, 'OrderRefund', '', NULL, NULL, 'button', '退款审核',
      NULL, 'order:refund', 5, 1, 1, 0, 0, 0),
     (506, 50, 'PaymentList', '', NULL, NULL, 'button', '查看支付流水',
-     NULL, 'payment:list', 6, 1, 1, 0, 0, 0)
+     NULL, 'payment:list', 6, 1, 1, 0, 0, 0),
+    (60, 0, 'Ai', '/ai', '/ai/index', NULL, 'menu', 'AI 创作',
+     'lucide:sparkles', 'ai:template:list', 17, 1, 1, 0, 0, 0),
+    (601, 60, 'AiTemplateCreate', '', NULL, NULL, 'button', '新增 AI 模板',
+     NULL, 'ai:template:create', 1, 1, 1, 0, 0, 0),
+    (602, 60, 'AiTemplateUpdate', '', NULL, NULL, 'button', '编辑 AI 模板',
+     NULL, 'ai:template:update', 2, 1, 1, 0, 0, 0),
+    (603, 60, 'AiTemplateDelete', '', NULL, NULL, 'button', '删除 AI 模板',
+     NULL, 'ai:template:delete', 3, 1, 1, 0, 0, 0),
+    (604, 60, 'AiTaskList', '', NULL, NULL, 'button', 'AI 任务查询',
+     NULL, 'ai:task:list', 4, 1, 1, 0, 0, 0),
+    (605, 60, 'AiUsageList', '', NULL, NULL, 'button', 'AI 用量日报',
+     NULL, 'ai:usage:list', 5, 1, 1, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_user (id, username, password_hash, real_name, avatar, description, home_path,
@@ -269,6 +287,49 @@ INSERT INTO plan_version (id, code, name, price_cents, duration_days, ai_image_q
     (1, 'PREMIUM_30', 'AI 创作会员 · 30 天', 5900, 30, 20, 3, 2, 1, 1)
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO ai_template (code, name, type, category, cover_url, params, status, version_no, sort) VALUES
+    ('AI_PHOTO_01', '韩系证件照', 'PHOTO', '证件照', '',
+     '{"prompt":"Korean style ID photo, clean background","aspectRatio":"3:4"}'::jsonb, 1, 1, 1),
+    ('AI_PHOTO_02', '商务形象照', 'PHOTO', '商务', '',
+     '{"prompt":"Professional business portrait, studio light","aspectRatio":"3:4"}'::jsonb, 1, 1, 2),
+    ('AI_PHOTO_03', '复古胶片写真', 'PHOTO', '写真', '',
+     '{"prompt":"Vintage film portrait, warm grain","aspectRatio":"3:4"}'::jsonb, 1, 1, 3),
+    ('AI_PHOTO_04', '清新日系写真', 'PHOTO', '写真', '',
+     '{"prompt":"Japanese fresh style portrait, soft daylight","aspectRatio":"3:4"}'::jsonb, 1, 1, 4),
+    ('AI_PHOTO_05', '高级感肖像', 'PHOTO', '肖像', '',
+     '{"prompt":"Editorial portrait, dramatic light","aspectRatio":"3:4"}'::jsonb, 1, 1, 5),
+    ('AI_PHOTO_06', '海边度假照', 'PHOTO', '旅拍', '',
+     '{"prompt":"Seaside vacation portrait, bright sky","aspectRatio":"3:4"}'::jsonb, 1, 1, 6),
+    ('AI_PHOTO_07', '校园青春照', 'PHOTO', '写真', '',
+     '{"prompt":"Campus youth portrait, natural smile","aspectRatio":"3:4"}'::jsonb, 1, 1, 7),
+    ('AI_PHOTO_08', '黑白艺术照', 'PHOTO', '艺术', '',
+     '{"prompt":"Black and white fine art portrait","aspectRatio":"3:4"}'::jsonb, 1, 1, 8),
+    ('AI_DRESS_01', '国风汉服', 'DRESSUP', '古风', '',
+     '{"prompt":"Traditional Chinese hanfu portrait","aspectRatio":"3:4"}'::jsonb, 1, 1, 11),
+    ('AI_DRESS_02', '法式复古', 'DRESSUP', '复古', '',
+     '{"prompt":"French vintage dress portrait","aspectRatio":"3:4"}'::jsonb, 1, 1, 12),
+    ('AI_DRESS_03', '职场西装', 'DRESSUP', '职场', '',
+     '{"prompt":"Modern business suit portrait","aspectRatio":"3:4"}'::jsonb, 1, 1, 13),
+    ('AI_DRESS_04', '赛博朋克', 'DRESSUP', '未来', '',
+     '{"prompt":"Cyberpunk neon outfit portrait","aspectRatio":"3:4"}'::jsonb, 1, 1, 14),
+    ('AI_DRESS_05', '婚纱礼服', 'DRESSUP', '婚礼', '',
+     '{"prompt":"Elegant wedding dress portrait","aspectRatio":"3:4"}'::jsonb, 1, 1, 15),
+    ('AI_DRESS_06', '民族风情', 'DRESSUP', '民族', '',
+     '{"prompt":"Ethnic costume portrait, rich texture","aspectRatio":"3:4"}'::jsonb, 1, 1, 16),
+    ('AI_DRESS_07', '街头潮搭', 'DRESSUP', '街头', '',
+     '{"prompt":"Streetwear fashion portrait","aspectRatio":"3:4"}'::jsonb, 1, 1, 17),
+    ('AI_DRESS_08', '童话公主', 'DRESSUP', '童话', '',
+     '{"prompt":"Fairy tale princess gown portrait","aspectRatio":"3:4"}'::jsonb, 1, 1, 18),
+    ('AI_VIDEO_01', '照片动起来', 'VIDEO', '动态', '',
+     '{"prompt":"Subtle natural motion from a portrait","duration":5}'::jsonb, 1, 1, 21),
+    ('AI_VIDEO_02', '电影感运镜', 'VIDEO', '运镜', '',
+     '{"prompt":"Cinematic camera push-in","duration":5}'::jsonb, 1, 1, 22),
+    ('AI_VIDEO_03', '时光倒流', 'VIDEO', '创意', '',
+     '{"prompt":"Time reverse creative transition","duration":5}'::jsonb, 1, 1, 23),
+    ('AI_VIDEO_04', '节日祝福', 'VIDEO', '节日', '',
+     '{"prompt":"Festival greeting motion card","duration":5}'::jsonb, 1, 1, 24)
+ON CONFLICT (code) DO NOTHING;
+
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT 1, id FROM sys_permission
 WHERE code IN ('plan:list', 'plan:create', 'plan:update', 'plan:delete',
@@ -277,6 +338,16 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 1, id FROM sys_menu WHERE id BETWEEN 50 AND 506
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission
+WHERE code IN ('ai:template:list', 'ai:template:create', 'ai:template:update',
+               'ai:template:delete', 'ai:task:list', 'ai:usage:list')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT 1, id FROM sys_menu WHERE id BETWEEN 60 AND 605
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('sys_dept', 'id'), (SELECT MAX(id) FROM sys_dept));
@@ -288,3 +359,4 @@ SELECT setval(pg_get_serial_sequence('pm_member', 'id'), (SELECT MAX(id) FROM pm
 SELECT setval(pg_get_serial_sequence('pm_member_period', 'id'), (SELECT MAX(id) FROM pm_member_period));
 SELECT setval(pg_get_serial_sequence('benefit_product', 'id'), (SELECT MAX(id) FROM benefit_product));
 SELECT setval(pg_get_serial_sequence('plan_version', 'id'), (SELECT MAX(id) FROM plan_version));
+SELECT setval(pg_get_serial_sequence('ai_template', 'id'), (SELECT MAX(id) FROM ai_template));

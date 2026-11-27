@@ -26,6 +26,7 @@ dist.zip
 .env.*.local
 logs/
 *.log
+data/
 deploy/pgdata/
 deploy/redisdata/
 
