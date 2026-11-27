@@ -93,7 +93,8 @@ public class JwtTokenService {
         List<String> roles = stringList(claims, "roles");
         List<String> permissions = stringList(claims, "perms");
         AuthenticatedUser user = new AuthenticatedUser(userId, username, realName, roles);
-        return new AccessClaims(user, permissions, claims.getId(), claims.getExpiration().toInstant());
+        return new AccessClaims(user, permissions, claims.getId(), claims.getIssuedAt().toInstant(),
+                claims.getExpiration().toInstant());
     }
 
     /**

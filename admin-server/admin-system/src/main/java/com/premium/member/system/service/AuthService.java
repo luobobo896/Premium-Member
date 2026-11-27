@@ -139,6 +139,7 @@ public class AuthService {
             try {
                 RefreshClaims claims = tokenService.parseRefreshToken(refreshToken);
                 tokenStore.revokeRefreshToken(claims.jti());
+                tokenStore.revokeUserAccessTokens(claims.userId(), jwtProperties.getAccessTtl());
             } catch (RuntimeException ex) {
                 log.debug("Ignore invalid refresh token on logout", ex);
             }

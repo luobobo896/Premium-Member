@@ -22,7 +22,7 @@ Premium-Member 是面向会员业务的多端系统：B 端管理后台、C 端 
 jenv local 21.0.9
 cp .env.example .env
 set -a && source .env && set +a
-docker compose up -d
+cd deploy && docker compose up -d
 ```
 
 预期：PostgreSQL 监听 `15432`，Redis 监听 `16379`。
@@ -30,7 +30,7 @@ docker compose up -d
 ```bash
 cd admin-server
 jenv exec /Users/hanson/work/Env/apache-maven-3.8.8/bin/mvn -q -DskipTests package
-jenv exec java -jar target/premium-member-admin-server-0.1.0.jar
+jenv exec java -jar admin-bootstrap/target/admin-bootstrap-0.1.0.jar
 ```
 
 预期：`http://127.0.0.1:5320/api/v3/api-docs` 与 `http://127.0.0.1:5320/api/swagger-ui/index.html` 可访问。
@@ -46,7 +46,7 @@ pnpm dev:antd
 ```bash
 cd c-server
 jenv exec /Users/hanson/work/Env/apache-maven-3.8.8/bin/mvn -q -DskipTests package
-jenv exec java -jar target/premium-member-c-server-0.1.0.jar
+jenv exec java -jar c-bootstrap/target/c-bootstrap-0.1.0.jar
 ```
 
 预期：`http://127.0.0.1:8081/health` 返回 `{"status":"UP",...}`。
@@ -65,6 +65,7 @@ jenv exec java -jar target/premium-member-c-server-0.1.0.jar
 - 会员模块：`docs/08-member-module.md`
 - OpenAPI：`docs/09-openapi.md`
 - 部署：`docs/10-deploy.md`
+- 验收记录：`docs/11-acceptance.md`
 
 ## 联系与反馈
 

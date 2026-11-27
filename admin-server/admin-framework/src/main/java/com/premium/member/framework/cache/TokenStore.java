@@ -1,6 +1,7 @@
 package com.premium.member.framework.cache;
 
 import java.time.Duration;
+import java.time.Instant;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -60,5 +61,33 @@ public class TokenStore {
 
     public boolean isAccessTokenRevoked(String jti) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(cacheKeys.revokedAccessToken(jti)));
+    }
+
+    /**
+     * 撤销用户在指定时间之前签发的全部 access token，用于前端 logout 不携带 Authorization 的场景。
+     *
+     * @param userId 用户 ID
+     * @param ttl    保留撤销记录至少一个 access token 生命周期
+     */
+    public void revokeUserAccessTokens(long userId, Duration ttl) {
+        redisTemplate.opsForValue().set(
+                cacheKeys.userAccessRevokedAt(userId),
+                String.valueOf(Instant.now().getEpochSecond()),
+                ttl);
+    }
+
+    /**
+     * 判断 access token 是否签发于用户最近一次登出之前。
+     *
+     * @param userId   用户 ID
+     * @param issuedAt token 签发时间
+     * @return true 表示已失效
+     */
+    public boolean isUserAccessRevoked(long userId, Instant issuedAt) {
+        String value = redisTemplate.opsForValue().get(cacheKeys.userAccessRevokedAt(userId));
+        if (value == null || issuedAt == null) {
+            return false;
+        }
+        return issuedAt.getEpochSecond() <= Long.parseLong(value);
     }
 }

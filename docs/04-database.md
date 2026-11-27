@@ -1,0 +1,84 @@
+# 数据库设计与 SQL
+
+数据库：PostgreSQL 17。DDL 与种子数据：
+
+- `admin-server/admin-bootstrap/src/main/resources/db/schema.sql`
+- `admin-server/admin-bootstrap/src/main/resources/db/data.sql`
+
+## 表
+
+| 表 | 说明 |
+|---|---|
+| `sys_user` | 用户，BCrypt 密码哈希、部门、状态、主页 |
+| `sys_role` | 角色，`code` 对应 vben `roles` |
+| `sys_permission` | 权限码，`code` 对应 vben `/auth/codes` 与按钮权限 |
+| `sys_menu` | 目录/菜单/按钮/外链，`permission_code` 关联权限码 |
+| `sys_dept` | 部门树 |
+| `sys_user_role` | 用户-角色 |
+| `sys_role_permission` | 角色-权限 |
+| `sys_role_menu` | 角色-菜单 |
+| `pm_member` | 会员业务示例 |
+
+关系：
+
+```text
+sys_user 1---N sys_user_role N---1 sys_role
+sys_role 1---N sys_role_permission N---1 sys_permission
+sys_role 1---N sys_role_menu N---1 sys_menu
+sys_user N---1 sys_dept
+```
+
+## 设计要点
+
+- 时间统一 `timestamptz`；JDBC 返回 `OffsetDateTime`，API 输出 ISO-8601。
+- 金额 `NUMERIC(12,2)`，Java 使用 `BigDecimal`；不使用浮点数。
+- 逻辑删除字段 `deleted`，值为 0/1；唯一索引使用 partial index，只约束未删除行。
+- 用户名、角色码、权限码、会员编号都有唯一索引。
+- 会员等级与状态有 CHECK 约束；积分、余额不允许负数。
+- 排序字段 `sort` 用于菜单和部门树稳定排序；菜单位置由 `parent_id + sort + id` 决定。
+
+## 首次初始化
+
+```bash
+cd deploy
+docker compose up -d
+```
+
+PostgreSQL 容器首次启动时按文件名顺序执行：
+
+1. `01-schema.sql`（挂载自 `schema.sql`）
+2. `02-data.sql`（挂载自 `data.sql`）
+
+检查：
+
+```bash
+docker compose exec -T postgres \
+  psql -U premium_member -d premium_member \
+  -c "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"
+```
+
+实测结果：9 张表，`sys_user=3`、`sys_menu=27`、`sys_permission=22`、`pm_member=3`。
+
+## 种子账号
+
+仅用于本地开发：
+
+| 用户名 | 密码 | 角色 |
+|---|---|---|
+| `admin` | `Admin@123456` | `super_admin` |
+| `operator` | `Operator@123456` | `operator` |
+| `viewer` | `Viewer@123456` | `viewer` |
+
+密码以 BCrypt `$2y$` 哈希存储，Spring `BCryptPasswordEncoder` 可直接校验。生产环境不得复用这些账号或密码。
+
+## 重置
+
+本地需要重新执行 DDL 时：
+
+```bash
+cd deploy
+docker compose down -v
+docker compose up -d
+```
+
+`down -v` 会删除本地 PostgreSQL 与 Redis 数据卷，属于破坏性操作，只允许在开发环境使用。

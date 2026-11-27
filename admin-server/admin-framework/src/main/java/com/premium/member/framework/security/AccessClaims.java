@@ -9,7 +9,9 @@ import java.util.List;
  * @param user        认证主体
  * @param permissions 权限码
  * @param jti         唯一标识
+ * @param issuedAt    签发时间
  * @param expiresAt   过期时间
  */
-public record AccessClaims(AuthenticatedUser user, List<String> permissions, String jti, Instant expiresAt) {
+public record AccessClaims(AuthenticatedUser user, List<String> permissions, String jti,
+        Instant issuedAt, Instant expiresAt) {
 }

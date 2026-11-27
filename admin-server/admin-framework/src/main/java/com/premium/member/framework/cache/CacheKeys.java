@@ -27,6 +27,10 @@ public class CacheKeys {
         return prefix + ":auth:perm:" + userId;
     }
 
+    public String userAccessRevokedAt(long userId) {
+        return prefix + ":auth:user-revoked:" + userId;
+    }
+
     public String captcha(String captchaId) {
         return prefix + ":auth:captcha:" + captchaId;
     }

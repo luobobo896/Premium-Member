@@ -18,8 +18,11 @@ admin-bootstrap -> admin-system / admin-member -> admin-framework -> admin-commo
 
 ```bash
 jenv local 21.0.9
+set -a && source ../.env && set +a
 jenv exec /Users/hanson/work/Env/apache-maven-3.8.8/bin/mvn -q -DskipTests package
 jenv exec java -jar admin-bootstrap/target/admin-bootstrap-0.1.0.jar
 ```
 
 默认端口 `5320`，上下文路径 `/api`。
+
+接口与配置说明见 `../docs/`，验收记录见 `../docs/11-acceptance.md`。
