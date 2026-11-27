@@ -517,3 +517,49 @@ WARN Audit queue full, dropped 5 operation logs (total 5)
 没有 `@Validated`，本轮没有真实触发点，未单独造数。
 
 本轮未改 admin-web、c-app、c-h5，未重新跑前端构建。
+
+## AI 创作（item 26，2026-11-27）
+
+基线 `465dae0`。详细设计与接口见 `docs/18-ai.md`。
+
+构建：
+
+```text
+admin-server  mvn -q -DskipTests package   成功
+c-server      mvn -q -DskipTests package   成功
+admin-web     pnpm run build:antd          11 tasks successful
+c-h5          npm run build                成功
+c-app         npm run build:h5             成功
+```
+
+真实接口验收：
+
+```text
+GET /c/ai/templates?type=PHOTO -> 200, 8 条
+POST /c/ai/assets               -> 200, 本地 PNG
+POST /c/ai/tasks                -> 200, QUEUED
+GET /c/ai/tasks/{taskNo}        -> RUNNING -> SUCCESS, 输出 900x1200 PNG
+DELETE /c/ai/works/{id}         -> 200, 产出 URL 随后 404
+```
+
+额度与幂等：
+
+```text
+同 idempotency_key 并发 5 次 -> ai_task 计数 = 1
+图片额度 20/20 后的下一次请求 -> HTTP 409, AI_QUOTA_EXHAUSTED
+视频额度 3/3 后第 4 次     -> HTTP 409, AI_QUOTA_EXHAUSTED
+FAIL 任务 -> FAILED, 账本 RELEASE +1
+UNKNOWN 任务 -> UNKNOWN, 无 RELEASE, 额度保持占用
+```
+
+跨期结算：
+
+```text
+提交任务时 period=8
+完成前把会员切到新周期
+完成详情: task_period=8
+账本: settle_period=8
+```
+
+截图见 `docs/screenshots/ai-*.png`。未接入真实供应商、未做 RUNNING 悬挂任务对账、
+文件下载未接签名 URL、c-app 未做真机验证，详见 `docs/18-ai.md`。

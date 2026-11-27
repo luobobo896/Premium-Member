@@ -120,7 +120,8 @@ cd c-app && npm install && npm run dev:h5
 cd c-h5  && npm install && npm run dev
 ```
 
-端口分别为 5173、5174。两者本轮冻结，只保留最小页面。
+端口分别为 5173、5174。c-h5 与 c-app 均已有会员、权益、订单和 AI 创作页面；AI 上传文件默认落在
+`c-server/data/ai`，可用 `AI_STORAGE_DIR` 改目录，Mock 供应商用 `AI_PROVIDER=mock`。
 
 ## 6. 打包与部署
 
