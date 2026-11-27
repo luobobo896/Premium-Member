@@ -1,5 +1,7 @@
 const API_BASE = 'http://127.0.0.1:8081';
 const TOKEN_KEY = 'c_access_token';
+const LOGIN_REDIRECT_KEY = 'pm_login_redirect';
+const PENDING_CLAIM_KEY = 'pm_pending_claim';
 
 export interface LoginData {
   accessToken: string;
@@ -61,6 +63,14 @@ export interface BenefitClaimResult {
   productSku: string;
   redemption: string | null;
   status: string;
+}
+
+export interface BenefitCatalogProduct {
+  cover: string;
+  description: string;
+  name: string;
+  rules: string;
+  skuCode: string;
 }
 
 export interface BenefitClaimHistory {
@@ -191,6 +201,26 @@ export function clearToken(): void {
   uni.removeStorageSync(TOKEN_KEY);
 }
 
+export function requireLogin(redirect: string, pendingClaimSku = ''): void {
+  uni.setStorageSync(LOGIN_REDIRECT_KEY, redirect);
+  if (pendingClaimSku) {
+    uni.setStorageSync(PENDING_CLAIM_KEY, pendingClaimSku);
+  }
+  uni.navigateTo({ url: '/pages/login/login' });
+}
+
+export function consumeLoginRedirect(): string {
+  const redirect = uni.getStorageSync(LOGIN_REDIRECT_KEY) || '';
+  uni.removeStorageSync(LOGIN_REDIRECT_KEY);
+  return redirect;
+}
+
+export function consumePendingClaim(): string {
+  const sku = uni.getStorageSync(PENDING_CLAIM_KEY) || '';
+  uni.removeStorageSync(PENDING_CLAIM_KEY);
+  return sku;
+}
+
 function request<T>(
   path: string,
   method: 'DELETE' | 'GET' | 'POST',
@@ -242,6 +272,10 @@ export function getMember(): Promise<MemberInfo> {
 
 export function getBenefits(): Promise<BenefitCenter> {
   return request('/c/benefits', 'GET');
+}
+
+export function getBenefitCatalog(): Promise<BenefitCatalogProduct[]> {
+  return request('/c/benefits/products', 'GET');
 }
 
 export function claimBenefit(sku: string): Promise<BenefitClaimResult> {

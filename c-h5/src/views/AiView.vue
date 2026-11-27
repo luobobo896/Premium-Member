@@ -8,6 +8,7 @@ import {
   clearAccessToken,
   createAiTask,
   deleteAiWork,
+  getAccessToken,
   getAiQuota,
   getAiTask,
   getAiTasks,
@@ -20,7 +21,7 @@ import {
   type AiType,
 } from '../api';
 
-const emit = defineEmits<{ logout: [] }>();
+const emit = defineEmits<{ login: []; logout: [] }>();
 
 const typeTabs: Array<{ label: string; value: AiType }> = [
   { label: '照片', value: 'PHOTO' },
@@ -38,6 +39,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const quota = ref<AiQuota | null>(null);
+const loggedIn = ref(Boolean(getAccessToken()));
 const templates = ref<AiTemplate[]>([]);
 const tasks = ref<AiTask[]>([]);
 const activeType = ref<AiType>('PHOTO');
@@ -87,6 +89,10 @@ function selectType(type: AiType) {
 }
 
 function pickFile() {
+  if (!loggedIn.value) {
+    emit('login');
+    return;
+  }
   fileInput.value?.click();
 }
 
@@ -109,23 +115,30 @@ async function onFile(event: Event) {
 function handleError(ex: unknown, fallback: string) {
   if (ex instanceof ApiError && ex.status === 401) {
     clearAccessToken();
-    emit('logout');
+    loggedIn.value = false;
+    quota.value = null;
+    tasks.value = [];
     return;
   }
   error.value = ex instanceof Error ? ex.message : fallback;
 }
 
 async function load() {
+  loggedIn.value = Boolean(getAccessToken());
   loading.value = true;
   error.value = '';
   try {
-    const [quotaData, templateData, taskData] = await Promise.all([
+    templates.value = await getAiTemplates();
+    if (!loggedIn.value) {
+      quota.value = null;
+      tasks.value = [];
+      return;
+    }
+    const [quotaData, taskData] = await Promise.all([
       getAiQuota(),
-      getAiTemplates(),
       getAiTasks(),
     ]);
     quota.value = quotaData;
-    templates.value = templateData;
     tasks.value = taskData;
   } catch (ex) {
     handleError(ex, 'AI 创作加载失败');
@@ -141,6 +154,10 @@ async function refreshQuotaAndTasks() {
 }
 
 async function submit() {
+  if (!loggedIn.value) {
+    emit('login');
+    return;
+  }
   if (!selectedTemplate.value || !inputAsset.value || submitting.value) return;
   submitting.value = true;
   error.value = '';
@@ -180,6 +197,10 @@ function poll(taskNo: string) {
 }
 
 async function removeWork(task: AiTask) {
+  if (!loggedIn.value) {
+    emit('login');
+    return;
+  }
   if (!window.confirm('删除这个作品？生成记录仍保留在后台。')) return;
   try {
     await deleteAiWork(task.id);
@@ -212,72 +233,83 @@ onBeforeUnmount(() => {
     <p v-if="loading" class="state-text">正在加载 AI 创作…</p>
     <p v-else-if="error" class="form-error" role="alert">{{ error }}</p>
 
-    <template v-if="!loading">
-      <div v-if="!quota?.period" class="state-block">
+    <template v-if="!loading && !error">
+      <div v-if="loggedIn && quota?.period" class="ai-quota-grid">
+        <div>
+          <span class="ai-quota-label">图片次数</span>
+          <strong>{{ quota.image.remaining }}/{{ quota.image.limit }}</strong>
+          <span class="ai-quota-meta">照片与换装共用</span>
+        </div>
+        <div>
+          <span class="ai-quota-label">视频次数</span>
+          <strong>{{ quota.video.remaining }}/{{ quota.video.limit }}</strong>
+          <span class="ai-quota-meta">单独计次</span>
+        </div>
+      </div>
+
+      <div v-else-if="!loggedIn" class="state-block">
+        <p class="state-text">游客可浏览全部 AI 模板，登录后上传照片并生成作品。</p>
+      </div>
+
+      <div v-else class="state-block">
         <p class="state-text">当前没有生效中的会员周期，购买套餐后才会获得 AI 次数。</p>
       </div>
 
-      <template v-else>
-        <div class="ai-quota-grid">
-          <div>
-            <span class="ai-quota-label">图片次数</span>
-            <strong>{{ quota.image.remaining }}/{{ quota.image.limit }}</strong>
-            <span class="ai-quota-meta">照片与换装共用</span>
-          </div>
-          <div>
-            <span class="ai-quota-label">视频次数</span>
-            <strong>{{ quota.video.remaining }}/{{ quota.video.limit }}</strong>
-            <span class="ai-quota-meta">单独计次</span>
-          </div>
-        </div>
+      <div class="ai-type-tabs" role="tablist">
+        <button
+          v-for="tab in typeTabs"
+          :key="tab.value"
+          :class="{ active: activeType === tab.value }"
+          type="button"
+          @click="selectType(tab.value)"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
 
-        <div class="ai-type-tabs" role="tablist">
-          <button
-            v-for="tab in typeTabs"
-            :key="tab.value"
-            :class="{ active: activeType === tab.value }"
-            type="button"
-            @click="selectType(tab.value)"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
+      <div class="ai-category-row">
+        <button
+          :class="{ active: !activeCategory }"
+          type="button"
+          @click="activeCategory = ''"
+        >
+          全部
+        </button>
+        <button
+          v-for="category in categories"
+          :key="category"
+          :class="{ active: activeCategory === category }"
+          type="button"
+          @click="activeCategory = category"
+        >
+          {{ category }}
+        </button>
+      </div>
 
-        <div class="ai-category-row">
-          <button
-            :class="{ active: !activeCategory }"
-            type="button"
-            @click="activeCategory = ''"
-          >
-            全部
-          </button>
-          <button
-            v-for="category in categories"
-            :key="category"
-            :class="{ active: activeCategory === category }"
-            type="button"
-            @click="activeCategory = category"
-          >
-            {{ category }}
-          </button>
-        </div>
+      <div class="ai-template-grid">
+        <button
+          v-for="template in visibleTemplates"
+          :key="template.id"
+          :class="{ selected: selectedTemplate?.id === template.id }"
+          class="ai-template"
+          type="button"
+          @click="selectedTemplate = template"
+        >
+          <span class="ai-template-cover">{{ template.name.slice(0, 1) }}</span>
+          <span class="ai-template-name">{{ template.name }}</span>
+          <span class="ai-template-category">{{ template.category }}</span>
+        </button>
+      </div>
 
-        <div class="ai-template-grid">
-          <button
-            v-for="template in visibleTemplates"
-            :key="template.id"
-            :class="{ selected: selectedTemplate?.id === template.id }"
-            class="ai-template"
-            type="button"
-            @click="selectedTemplate = template"
-          >
-            <span class="ai-template-cover">{{ template.name.slice(0, 1) }}</span>
-            <span class="ai-template-name">{{ template.name }}</span>
-            <span class="ai-template-category">{{ template.category }}</span>
-          </button>
-        </div>
+      <div v-if="!loggedIn" class="ai-submit-card">
+        <p class="ai-step-title">登录后生成</p>
+        <p class="ai-selected-name">{{ selectedTemplate?.name || '先选一个模板' }}</p>
+        <Button block type="primary" class="submit-button" @click="emit('login')">
+          登录后生成
+        </Button>
+      </div>
 
-        <div class="ai-submit-card">
+      <div v-else class="ai-submit-card">
           <p class="ai-step-title">1. 上传一张照片</p>
           <input
             ref="fileInput"
@@ -312,9 +344,9 @@ onBeforeUnmount(() => {
           >
             提交创作（消耗 1 次）
           </Button>
-        </div>
+      </div>
 
-        <section v-if="currentTask" class="ai-current" aria-live="polite">
+      <section v-if="loggedIn && currentTask" class="ai-current" aria-live="polite">
           <div class="benefit-card-head">
             <div>
               <p class="eyebrow">当前任务</p>
@@ -358,9 +390,9 @@ onBeforeUnmount(() => {
           <p v-if="currentTask.status === 'UNKNOWN'" class="ai-note">
             供应商未返回明确结果，本次次数继续占用，只能查询，不会自动重试。
           </p>
-        </section>
+      </section>
 
-        <section class="history-section">
+      <section v-if="loggedIn" class="history-section">
           <h2>我的作品</h2>
           <p v-if="works.length === 0" class="state-text">还没有生成成功的作品。</p>
           <div v-else class="ai-works">
@@ -383,8 +415,7 @@ onBeforeUnmount(() => {
               </Button>
             </article>
           </div>
-        </section>
-      </template>
+      </section>
     </template>
   </section>
 </template>

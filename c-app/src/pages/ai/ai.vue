@@ -13,6 +13,7 @@ import {
   getAiTasks,
   getAiTemplates,
   getToken,
+  requireLogin,
   uploadAiAsset,
   type AiQuota,
   type AiTask,
@@ -77,6 +78,7 @@ const aspectRatio = computed(() =>
 );
 const consumeText = computed(() => {
   const kind = activeType.value === 'VIDEO' ? '视频' : '图片';
+  if (!loggedIn.value) return '登录后生成，会员额度按周期发放';
   if (!quota.value?.period) return `本次消耗 1 次${kind}额度`;
   const remaining =
     activeType.value === 'VIDEO' ? quota.value.video.remaining : quota.value.image.remaining;
@@ -111,7 +113,8 @@ function statusClass(status: string): string {
 }
 
 function goLogin(): void {
-  uni.navigateTo({ url: '/pages/login/login' });
+  uni.setStorageSync('pm_ai_type', activeType.value);
+  requireLogin('/pages/ai/ai');
 }
 
 function handleError(ex: unknown) {
@@ -127,24 +130,22 @@ async function load() {
   loggedIn.value = Boolean(getToken());
   loading.value = true;
   error.value = '';
+  templates.value = await getAiTemplates().catch(() => [] as AiTemplate[]);
   if (!loggedIn.value) {
     quota.value = null;
-    templates.value = [];
     tasks.value = [];
     loading.value = false;
     return;
   }
   try {
-    const [quotaData, templateData, taskData] = await Promise.all([
+    const [quotaData, taskData] = await Promise.all([
       getAiQuota(),
-      getAiTemplates(),
       getAiTasks(),
     ]);
     quota.value = quotaData;
-    templates.value = templateData;
     tasks.value = taskData;
     if (presetTemplateId.value) {
-      const preset = templateData.find((item) => item.id === presetTemplateId.value);
+      const preset = templates.value.find((item) => item.id === presetTemplateId.value);
       if (preset) {
         activeType.value = preset.type;
         selected.value = preset;
@@ -343,7 +344,7 @@ onUnload(() => {
           </view>
         </view>
       </scroll-view>
-      <view v-else class="pm-empty">{{ loggedIn ? '暂无模板' : '登录后查看模板' }}</view>
+      <view v-else class="pm-empty">暂无模板</view>
 
       <view v-if="selected" class="params">
         <template v-if="activeType === 'VIDEO'">

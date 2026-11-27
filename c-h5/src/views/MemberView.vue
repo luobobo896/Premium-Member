@@ -5,6 +5,7 @@ import { Button } from 'vant';
 import {
   ApiError,
   clearAccessToken,
+  getAccessToken,
   getInfo,
   getMember,
   logout,
@@ -12,7 +13,7 @@ import {
   type MemberInfo,
 } from '../api';
 
-const emit = defineEmits<{ logout: [] }>();
+const emit = defineEmits<{ login: []; logout: [] }>();
 
 const LEVELS: Record<string, string> = {
   BASIC: '基础会员',
@@ -23,6 +24,7 @@ const LEVELS: Record<string, string> = {
 
 const user = ref<CUserInfo | null>(null);
 const member = ref<MemberInfo | null>(null);
+const loggedIn = ref(Boolean(getAccessToken()));
 const loading = ref(true);
 const error = ref('');
 const loggingOut = ref(false);
@@ -40,6 +42,11 @@ function formatBalance(value: number): string {
 }
 
 async function load(): Promise<void> {
+  loggedIn.value = Boolean(getAccessToken());
+  if (!loggedIn.value) {
+    loading.value = false;
+    return;
+  }
   loading.value = true;
   error.value = '';
   try {
@@ -78,59 +85,98 @@ onMounted(load);
 
 <template>
   <section class="surface member-card" aria-labelledby="member-title">
-    <header class="member-header">
-      <div>
-        <p class="eyebrow">会员中心</p>
-        <h1 id="member-title">{{ user?.nickname || '会员账号' }}</h1>
-        <p class="lede">{{ user?.phone }}</p>
-      </div>
-      <span v-if="member" class="status-pill" :class="{ inactive: member.status !== 1 }">
-        {{ member.status === 1 ? '正常' : '停用' }}
-      </span>
-    </header>
+    <template v-if="!loggedIn">
+      <header>
+        <p class="eyebrow">我的</p>
+        <h1 id="member-title">登录 / 注册</h1>
+        <p class="lede">登录后查看会员卡、订单、权益记录与 AI 作品。</p>
+      </header>
 
-    <p v-if="loading" class="state-text">正在加载会员信息…</p>
+      <ul class="member-selling">
+        <li>AI 写真、换装与图生视频，按会员周期发放次数</li>
+        <li>每个有效周期可选择 2 项权益，卡密仅领取时展示</li>
+        <li>手机号 + 密码登录，登录后回到原页面继续</li>
+      </ul>
 
-    <div v-else-if="error" class="state-block">
-      <p class="form-error" role="alert">{{ error }}</p>
-      <Button plain block class="secondary-button" @click="load">重新加载</Button>
-    </div>
-
-    <div v-else-if="!member" class="state-block">
-      <p class="state-text">该手机号还没有会员档案，请联系运营人员开通。</p>
-    </div>
-
-    <template v-else>
-      <p class="member-no">{{ member.memberNo }}</p>
-
-      <dl class="member-grid">
-        <div>
-          <dt>等级</dt>
-          <dd>{{ levelName(member.level) }}</dd>
-        </div>
-        <div>
-          <dt>积分</dt>
-          <dd>{{ member.points.toLocaleString('zh-CN') }}</dd>
-        </div>
-        <div>
-          <dt>余额</dt>
-          <dd>{{ formatBalance(member.balance) }}</dd>
-        </div>
-        <div>
-          <dt>入会时间</dt>
-          <dd>{{ formatDate(member.joinedAt) }}</dd>
-        </div>
-      </dl>
+      <Button block type="primary" class="submit-button" @click="emit('login')">
+        登录 / 注册
+      </Button>
     </template>
 
-    <Button
-      plain
-      block
-      class="secondary-button logout-button"
-      :loading="loggingOut"
-      @click="signOut"
-    >
-      退出登录
-    </Button>
+    <template v-else>
+      <header class="member-header">
+        <div>
+          <p class="eyebrow">会员中心</p>
+          <h1 id="member-title">{{ user?.nickname || '会员账号' }}</h1>
+          <p class="lede">{{ user?.phone }}</p>
+        </div>
+        <span v-if="member" class="status-pill" :class="{ inactive: member.status !== 1 }">
+          {{ member.status === 1 ? '正常' : '停用' }}
+        </span>
+      </header>
+
+      <p v-if="loading" class="state-text">正在加载会员信息…</p>
+
+      <div v-else-if="error" class="state-block">
+        <p class="form-error" role="alert">{{ error }}</p>
+        <Button plain block class="secondary-button" @click="load">重新加载</Button>
+      </div>
+
+      <div v-else-if="!member" class="state-block">
+        <p class="state-text">该手机号还没有会员档案，请联系运营人员开通。</p>
+      </div>
+
+      <template v-else>
+        <p class="member-no">{{ member.memberNo }}</p>
+
+        <dl class="member-grid">
+          <div>
+            <dt>等级</dt>
+            <dd>{{ levelName(member.level) }}</dd>
+          </div>
+          <div>
+            <dt>积分</dt>
+            <dd>{{ member.points.toLocaleString('zh-CN') }}</dd>
+          </div>
+          <div>
+            <dt>余额</dt>
+            <dd>{{ formatBalance(member.balance) }}</dd>
+          </div>
+          <div>
+            <dt>入会时间</dt>
+            <dd>{{ formatDate(member.joinedAt) }}</dd>
+          </div>
+        </dl>
+      </template>
+
+      <Button
+        plain
+        block
+        class="secondary-button logout-button"
+        :loading="loggingOut"
+        @click="signOut"
+      >
+        退出登录
+      </Button>
+    </template>
   </section>
 </template>
+
+<style scoped>
+.member-selling {
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-selling li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--c-border);
+  color: var(--c-muted);
+  font-size: 14px;
+}
+
+.member-selling li:last-child {
+  border-bottom: 0;
+}
+</style>

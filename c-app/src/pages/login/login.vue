@@ -2,7 +2,13 @@
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 
-import { ApiError, getToken, login } from '../../api';
+import {
+  ApiError,
+  consumeLoginRedirect,
+  consumePendingClaim,
+  getToken,
+  login,
+} from '../../api';
 
 const phone = ref('');
 const password = ref('');
@@ -11,9 +17,19 @@ const loading = ref(false);
 
 onLoad(() => {
   if (getToken()) {
-    uni.reLaunch({ url: '/pages/member/member' });
+    goNext();
   }
 });
+
+function goNext(): void {
+  const redirect = consumeLoginRedirect() || '/pages/member/member';
+  const claimSku = consumePendingClaim();
+  const url =
+    claimSku && redirect.startsWith('/pages/benefit/benefit')
+      ? `${redirect}?claim=${encodeURIComponent(claimSku)}`
+      : redirect;
+  uni.reLaunch({ url });
+}
 
 async function submit(): Promise<void> {
   error.value = '';
@@ -29,7 +45,7 @@ async function submit(): Promise<void> {
   loading.value = true;
   try {
     await login(phone.value.trim(), password.value);
-    uni.reLaunch({ url: '/pages/member/member' });
+    goNext();
   } catch (ex) {
     error.value = ex instanceof ApiError ? ex.message : '登录失败，请稍后重试';
   } finally {

@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onLoad, onShow } from '@dcloudio/uni-app';
 
 import {
   ApiError,
   claimBenefit,
   clearToken,
+  consumePendingClaim,
   getBenefitClaims,
+  getBenefitCatalog,
   getBenefits,
   getToken,
+  requireLogin,
+  type BenefitCatalogProduct,
   type BenefitCenter,
   type BenefitClaimHistory,
   type BenefitProduct,
@@ -17,10 +21,13 @@ import AppTabbar from '../../components/AppTabbar.vue';
 import GradientCover from '../../components/GradientCover.vue';
 
 const center = ref<BenefitCenter | null>(null);
+const catalog = ref<BenefitCatalogProduct[]>([]);
 const history = ref<BenefitClaimHistory[]>([]);
+const loggedIn = ref(false);
 const loading = ref(true);
 const error = ref('');
 const claimingSku = ref('');
+const autoClaimSku = ref('');
 const reveal = ref<{
   cardCode: string;
   productName: string;
@@ -66,21 +73,36 @@ function statusClass(product: BenefitProduct): string {
   return 'pm-pill--warning';
 }
 
+function goLogin(): void {
+  requireLogin('/pages/benefit/benefit');
+}
+
+function claimCatalog(product: BenefitCatalogProduct): void {
+  requireLogin('/pages/benefit/benefit', product.skuCode);
+}
+
 async function load(): Promise<void> {
-  if (!getToken()) {
-    uni.reLaunch({ url: '/pages/login/login' });
-    return;
-  }
+  loggedIn.value = Boolean(getToken());
   loading.value = true;
   error.value = '';
   try {
+    catalog.value = await getBenefitCatalog();
+    if (!loggedIn.value) {
+      center.value = null;
+      history.value = [];
+      return;
+    }
     const [centerData, claimData] = await Promise.all([getBenefits(), getBenefitClaims()]);
     center.value = centerData;
     history.value = claimData;
+    await resumePendingClaim();
+    await resumeAutoClaim();
   } catch (ex) {
     if (ex instanceof ApiError && ex.statusCode === 401) {
       clearToken();
-      uni.reLaunch({ url: '/pages/login/login' });
+      loggedIn.value = false;
+      center.value = null;
+      history.value = [];
       return;
     }
     if (ex instanceof ApiError && ex.bizCode === 'MEMBER_NOT_FOUND') {
@@ -94,6 +116,10 @@ async function load(): Promise<void> {
 }
 
 async function claim(product: BenefitProduct): Promise<void> {
+  if (!loggedIn.value) {
+    requireLogin('/pages/benefit/benefit', product.skuCode);
+    return;
+  }
   if (claimingSku.value) return;
   claimingSku.value = product.skuCode;
   error.value = '';
@@ -114,13 +140,33 @@ async function claim(product: BenefitProduct): Promise<void> {
   }
 }
 
+async function resumePendingClaim(): Promise<void> {
+  const sku = consumePendingClaim();
+  const product = center.value?.products.find((item) => item.skuCode === sku);
+  if (product && !product.claimed) {
+    await claim(product);
+  }
+}
+
+async function resumeAutoClaim(): Promise<void> {
+  const sku = autoClaimSku.value;
+  autoClaimSku.value = '';
+  const product = center.value?.products.find((item) => item.skuCode === sku);
+  if (product && !product.claimed) {
+    await claim(product);
+  }
+}
+
+onLoad((options) => {
+  autoClaimSku.value = typeof options?.claim === 'string' ? options.claim : '';
+});
 onShow(load);
 </script>
 
 <template>
   <view class="pm-page">
-    <text class="pm-title">权益中心</text>
-    <text v-if="center?.period" class="pm-sub period">
+    <text class="pm-title">{{ loggedIn ? '权益中心' : '会员权益目录' }}</text>
+    <text v-if="loggedIn && center?.period" class="pm-sub period">
       周期 {{ center.period.periodNo }} · 至 {{ formatDate(center.period.endAt) }}
     </text>
 
@@ -130,6 +176,38 @@ onShow(load);
       <text class="pm-notice">{{ error }}</text>
       <button class="pm-btn pm-btn--secondary" @click="load">重新加载</button>
     </view>
+
+    <template v-else-if="!loggedIn">
+      <view class="pm-card catalog-note">
+        <view>
+          <text class="pm-card-title">登录后领取本期权益</text>
+          <text class="pm-sub">会员每个周期可选择 2 项权益，卡密仅领取时展示。</text>
+        </view>
+        <button class="pm-btn pm-btn--primary" @click="goLogin">登录 / 注册</button>
+      </view>
+
+      <view class="product-list">
+        <view v-for="product in catalog" :key="product.skuCode" class="pm-card product">
+          <view class="product-top">
+            <view class="product-cover">
+              <GradientCover
+                :label="coverLabel(product.name)"
+                :tone="product.cover"
+                :height="72"
+              />
+            </view>
+            <view class="product-main">
+              <text class="pm-card-title">{{ product.name }}</text>
+              <text class="pm-sub product-desc">{{ product.description }}</text>
+            </view>
+          </view>
+          <text class="product-rules">{{ product.rules }}</text>
+          <button class="pm-btn pm-btn--secondary claim" @click="claimCatalog(product)">
+            登录后领取
+          </button>
+        </view>
+      </view>
+    </template>
 
     <view v-else-if="!center?.period" class="pm-card state-card">
       <text class="pm-body">当前没有生效中的权益周期。</text>
@@ -296,6 +374,13 @@ onShow(load);
 }
 
 .product-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.catalog-note {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);

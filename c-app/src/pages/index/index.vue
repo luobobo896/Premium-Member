@@ -54,10 +54,6 @@ function coverTone(type: AiType): string {
   return 'photo';
 }
 
-function goLogin(): void {
-  uni.navigateTo({ url: '/pages/login/login' });
-}
-
 function openType(type: AiType): void {
   uni.setStorageSync('pm_ai_type', type);
   uni.removeStorageSync('pm_ai_template_id');
@@ -71,16 +67,12 @@ function openTemplate(template: AiTemplate): void {
 }
 
 function openBenefits(): void {
-  if (!getToken()) {
-    goLogin();
-    return;
-  }
   uni.reLaunch({ url: '/pages/benefit/benefit' });
 }
 
 function openStatus(): void {
   if (!getToken()) {
-    goLogin();
+    uni.reLaunch({ url: '/pages/member/member' });
     return;
   }
   uni.reLaunch({ url: '/pages/member/member' });
@@ -101,15 +93,16 @@ async function load(): Promise<void> {
     // 内容未配置时保留默认卡位。
   }
 
+  templates.value = await getAiTemplates().catch(() => [] as AiTemplate[]);
+
   if (!loggedIn.value) {
     quota.value = null;
-    templates.value = [];
     benefitCenter.value = null;
     loading.value = false;
     return;
   }
 
-  const [quotaData, templateData, benefitData] = await Promise.all([
+  const [quotaData, benefitData] = await Promise.all([
     getAiQuota().catch((ex) => {
       if (ex instanceof ApiError && ex.statusCode === 401) {
         clearToken();
@@ -117,11 +110,9 @@ async function load(): Promise<void> {
       }
       return null;
     }),
-    getAiTemplates().catch(() => [] as AiTemplate[]),
     getBenefits().catch(() => null),
   ]);
   quota.value = quotaData;
-  templates.value = templateData;
   benefitCenter.value = benefitData;
   loading.value = false;
 }
@@ -196,11 +187,6 @@ onShow(load);
       </view>
     </view>
 
-    <view v-else-if="!loggedIn" class="pm-card empty-login">
-      <text class="pm-sub">登录后查看模板</text>
-      <button class="pm-btn pm-btn--secondary" @click="goLogin">去登录</button>
-    </view>
-
     <view v-else class="pm-empty">暂无模板</view>
 
     <view class="pm-card benefit-row pm-tap" @click="openBenefits">
@@ -209,7 +195,7 @@ onShow(load);
       <text class="pm-sub benefit-count">
         {{
           !loggedIn
-            ? '登录后查看'
+            ? '登录后领取'
             : benefitCenter?.period
               ? `本期可选 ${availableBenefits} 项`
               : '暂无可用权益'

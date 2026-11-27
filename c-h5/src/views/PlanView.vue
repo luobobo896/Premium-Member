@@ -5,15 +5,22 @@ import { Button, Checkbox } from 'vant';
 import {
   ApiError,
   clearAccessToken,
+  consumePendingPurchase,
   createOrder,
+  getAccessToken,
   getContents,
   getPlans,
   type OrderInfo,
   type PlanInfo,
 } from '../api';
 
-const emit = defineEmits<{ logout: []; ordered: [order: OrderInfo] }>();
+const emit = defineEmits<{
+  login: [action: { planId: number }];
+  logout: [];
+  ordered: [order: OrderInfo];
+}>();
 
+const loggedIn = Boolean(getAccessToken());
 const plans = ref<PlanInfo[]>([]);
 const selectedId = ref<number | null>(null);
 const agreed = ref(false);
@@ -76,6 +83,10 @@ async function submit(): Promise<void> {
     error.value = '请先阅读并勾选会员服务协议';
     return;
   }
+  if (!getAccessToken()) {
+    emit('login', { planId: selectedId.value });
+    return;
+  }
   creating.value = true;
   error.value = '';
   try {
@@ -88,9 +99,16 @@ async function submit(): Promise<void> {
   }
 }
 
-onMounted(() => {
-  load();
-  loadCopy();
+onMounted(async () => {
+  const pendingPlanId = consumePendingPurchase();
+  await Promise.all([load(), loadCopy()]);
+  if (pendingPlanId && getAccessToken()) {
+    selectedId.value = plans.value.some((plan) => plan.id === pendingPlanId)
+      ? pendingPlanId
+      : selectedId.value;
+    agreed.value = true;
+    await submit();
+  }
 });
 </script>
 
@@ -144,7 +162,7 @@ onMounted(() => {
       type="primary"
       @click="submit"
     >
-      提交订单
+      {{ loggedIn ? '提交订单' : '登录后购买' }}
     </Button>
   </section>
 </template>

@@ -6,17 +6,26 @@ import {
   ApiError,
   claimBenefit,
   clearAccessToken,
+  consumePendingClaim,
   getBenefitClaims,
+  getBenefitCatalog,
   getBenefits,
+  getAccessToken,
+  type BenefitCatalogProduct,
   type BenefitCenter,
   type BenefitClaimHistory,
   type BenefitProduct,
 } from '../api';
 
-const emit = defineEmits<{ logout: [] }>();
+const emit = defineEmits<{
+  login: [action: { claimSku: string }];
+  logout: [];
+}>();
 
 const center = ref<BenefitCenter | null>(null);
+const catalog = ref<BenefitCatalogProduct[]>([]);
 const history = ref<BenefitClaimHistory[]>([]);
+const loggedIn = ref(Boolean(getAccessToken()));
 const loading = ref(true);
 const error = ref('');
 const claimingSku = ref('');
@@ -44,16 +53,26 @@ function formatDate(value: null | string): string {
 }
 
 async function load(): Promise<void> {
+  loggedIn.value = Boolean(getAccessToken());
   loading.value = true;
   error.value = '';
   try {
+    catalog.value = await getBenefitCatalog();
+    if (!loggedIn.value) {
+      center.value = null;
+      history.value = [];
+      return;
+    }
     const [centerData, claimData] = await Promise.all([getBenefits(), getBenefitClaims()]);
     center.value = centerData;
     history.value = claimData;
+    await resumePendingClaim();
   } catch (ex) {
     if (ex instanceof ApiError && ex.status === 401) {
       clearAccessToken();
-      emit('logout');
+      loggedIn.value = false;
+      center.value = null;
+      history.value = [];
       return;
     }
     if (ex instanceof ApiError && ex.bizCode === 'MEMBER_NOT_FOUND') {
@@ -67,6 +86,10 @@ async function load(): Promise<void> {
 }
 
 async function claim(product: BenefitProduct): Promise<void> {
+  if (!loggedIn.value) {
+    emit('login', { claimSku: product.skuCode });
+    return;
+  }
   if (claimingSku.value) return;
   claimingSku.value = product.skuCode;
   error.value = '';
@@ -87,6 +110,18 @@ async function claim(product: BenefitProduct): Promise<void> {
   }
 }
 
+async function resumePendingClaim(): Promise<void> {
+  const sku = consumePendingClaim();
+  const product = center.value?.products.find((item) => item.skuCode === sku);
+  if (product && !product.claimed) {
+    await claim(product);
+  }
+}
+
+function claimCatalog(product: BenefitCatalogProduct): void {
+  emit('login', { claimSku: product.skuCode });
+}
+
 onMounted(load);
 </script>
 
@@ -94,20 +129,39 @@ onMounted(load);
   <section class="surface benefit-surface" aria-labelledby="benefit-title">
     <header class="member-header">
       <div>
-        <p class="eyebrow">权益中心</p>
-        <h1 id="benefit-title">本期权益</h1>
+        <p class="eyebrow">{{ loggedIn ? '权益中心' : '会员权益' }}</p>
+        <h1 id="benefit-title">{{ loggedIn ? '本期权益' : '权益目录' }}</h1>
         <p v-if="center?.period" class="lede">
           周期 {{ center.period.periodNo }} · {{ formatDate(center.period.startAt) }} 至
           {{ formatDate(center.period.endAt) }}
         </p>
-        <p v-else class="lede">领取后请在有效期内使用，过期不结转。</p>
+        <p v-else-if="loggedIn" class="lede">领取后请在有效期内使用，过期不结转。</p>
+        <p v-else class="lede">游客可先浏览目录，登录后查看名额并领取。</p>
       </div>
-      <span v-if="center?.period" class="status-pill">
+      <span v-if="loggedIn && center?.period" class="status-pill">
         剩余 {{ center.quotaRemaining }}/{{ center.quotaTotal }}
       </span>
     </header>
 
     <p v-if="loading" class="state-text">正在加载权益…</p>
+
+    <div v-else-if="!loggedIn" class="benefit-list">
+      <article v-for="product in catalog" :key="product.skuCode" class="benefit-card">
+        <span class="catalog-cover" :class="product.cover">
+          {{ product.name.slice(0, 1) }}
+        </span>
+        <div class="benefit-card-head">
+          <div>
+            <h2>{{ product.name }}</h2>
+            <p class="benefit-desc">{{ product.description }}</p>
+          </div>
+        </div>
+        <p class="benefit-rules">{{ product.rules }}</p>
+        <Button block plain class="secondary-button" @click="claimCatalog(product)">
+          登录后领取
+        </Button>
+      </article>
+    </div>
 
     <div v-else-if="error && !center" class="state-block">
       <p class="form-error" role="alert">{{ error }}</p>
@@ -187,3 +241,34 @@ onMounted(load);
     </template>
   </section>
 </template>
+
+<style scoped>
+.catalog-cover {
+  display: grid;
+  width: 100%;
+  height: 96px;
+  margin-bottom: 12px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--c-surface);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.catalog-cover.benefit {
+  background: linear-gradient(160deg, var(--c-cover-1-a), var(--c-cover-1-b));
+}
+
+.catalog-cover.benefit2 {
+  background: linear-gradient(160deg, var(--c-cover-2-a), var(--c-cover-2-b));
+}
+
+.catalog-cover.benefit3 {
+  background: linear-gradient(160deg, var(--c-cover-3-a), var(--c-cover-3-b));
+}
+
+.benefit-card .secondary-button {
+  margin-top: 14px;
+}
+</style>

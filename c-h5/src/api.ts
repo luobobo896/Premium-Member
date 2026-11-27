@@ -1,5 +1,8 @@
 const API_BASE = import.meta.env.VITE_C_API_BASE ?? 'http://127.0.0.1:8081';
 const TOKEN_KEY = 'c_access_token';
+const LOGIN_REDIRECT_KEY = 'c_login_redirect';
+const PENDING_CLAIM_KEY = 'c_pending_claim';
+const PENDING_PURCHASE_KEY = 'c_pending_purchase';
 
 export interface CUserInfo {
   id: number;
@@ -65,6 +68,14 @@ export interface BenefitClaimResult {
   status: string;
 }
 
+export interface BenefitCatalogProduct {
+  cover: string;
+  description: string;
+  name: string;
+  rules: string;
+  skuCode: string;
+}
+
 export interface BenefitClaimHistory {
   cardMasked: string | null;
   claimId: number;
@@ -80,12 +91,10 @@ export interface PlanInfo {
   aiImageQuota: number;
   aiVideoQuota: number;
   benefitQuota: number;
-  code: string;
   durationDays: number;
   id: number;
   name: string;
   priceCents: number;
-  versionNo: number;
 }
 
 export interface OrderPeriod {
@@ -233,6 +242,37 @@ export function clearAccessToken(): void {
   sessionStorage.removeItem(TOKEN_KEY);
 }
 
+export function setLoginIntent(
+  redirect: string,
+  action?: { claimSku?: string; planId?: number },
+): void {
+  sessionStorage.setItem(LOGIN_REDIRECT_KEY, redirect);
+  if (action?.claimSku) {
+    sessionStorage.setItem(PENDING_CLAIM_KEY, action.claimSku);
+  }
+  if (action?.planId) {
+    sessionStorage.setItem(PENDING_PURCHASE_KEY, String(action.planId));
+  }
+}
+
+export function consumeLoginRedirect(): string {
+  const redirect = sessionStorage.getItem(LOGIN_REDIRECT_KEY) ?? '';
+  sessionStorage.removeItem(LOGIN_REDIRECT_KEY);
+  return redirect;
+}
+
+export function consumePendingClaim(): string {
+  const sku = sessionStorage.getItem(PENDING_CLAIM_KEY) ?? '';
+  sessionStorage.removeItem(PENDING_CLAIM_KEY);
+  return sku;
+}
+
+export function consumePendingPurchase(): number {
+  const planId = Number(sessionStorage.getItem(PENDING_PURCHASE_KEY) ?? 0);
+  sessionStorage.removeItem(PENDING_PURCHASE_KEY);
+  return planId;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAccessToken();
   const headers = new Headers(init.headers);
@@ -282,6 +322,10 @@ export function getMember(): Promise<MemberInfo> {
 
 export function getBenefits(): Promise<BenefitCenter> {
   return request<BenefitCenter>('/c/benefits');
+}
+
+export function getBenefitCatalog(): Promise<BenefitCatalogProduct[]> {
+  return request<BenefitCatalogProduct[]>('/c/benefits/products');
 }
 
 export function claimBenefit(sku: string): Promise<BenefitClaimResult> {

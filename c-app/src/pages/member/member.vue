@@ -10,6 +10,7 @@ import {
   getMember,
   getToken,
   logout,
+  requireLogin,
   type MemberInfo,
 } from '../../api';
 import AppIcon from '../../components/AppIcon.vue';
@@ -29,6 +30,7 @@ const benefitEnd = ref('');
 const loading = ref(true);
 const error = ref('');
 const loggingOut = ref(false);
+const loggedIn = ref(Boolean(getToken()));
 
 const initial = computed(() => (nickname.value || '会').slice(0, 1));
 
@@ -49,8 +51,9 @@ function formatBalance(value: number): string {
 }
 
 async function load(): Promise<void> {
-  if (!getToken()) {
-    uni.reLaunch({ url: '/pages/login/login' });
+  loggedIn.value = Boolean(getToken());
+  if (!loggedIn.value) {
+    loading.value = false;
     return;
   }
   loading.value = true;
@@ -74,7 +77,8 @@ async function load(): Promise<void> {
   } catch (ex) {
     if (ex instanceof ApiError && ex.statusCode === 401) {
       clearToken();
-      uni.reLaunch({ url: '/pages/login/login' });
+      loggedIn.value = false;
+      member.value = null;
       return;
     }
     error.value = ex instanceof Error ? ex.message : '加载失败，请稍后重试';
@@ -89,8 +93,14 @@ async function signOut(): Promise<void> {
     await logout();
   } finally {
     loggingOut.value = false;
-    uni.reLaunch({ url: '/pages/login/login' });
+    loggedIn.value = false;
+    member.value = null;
+    uni.reLaunch({ url: '/pages/member/member' });
   }
+}
+
+function goLogin(): void {
+  requireLogin('/pages/member/member');
 }
 
 function openBenefit(): void {
@@ -110,84 +120,160 @@ onShow(load);
 
 <template>
   <view class="pm-page">
-    <view class="profile">
-      <view class="avatar">
-        <text class="avatar-text">{{ initial }}</text>
-      </view>
-      <view class="profile-copy">
-        <text class="pm-title name">{{ nickname || '会员账号' }}</text>
-        <text class="pm-sub">{{ phone }}</text>
-      </view>
-    </view>
-
-    <view v-if="loading" class="pm-skeleton member-skeleton"></view>
-
-    <view v-else-if="error" class="pm-card state-card">
-      <text class="pm-notice">{{ error }}</text>
-      <button class="pm-btn pm-btn--secondary retry" @click="load">重新加载</button>
-    </view>
-
-    <view v-else-if="!member" class="pm-card state-card">
-      <text class="pm-body">该手机号还没有会员档案，请联系运营人员开通。</text>
-    </view>
-
-    <view v-else class="member-card">
-      <view class="card-head">
-        <text class="card-label">会员卡</text>
-        <text class="pm-pill" :class="member.status === 1 ? 'pm-pill--accent' : 'pm-pill--danger'">
-          {{ member.status === 1 ? '正常' : '停用' }}
-        </text>
-      </view>
-      <text class="card-level">{{ levelName(member.level) }}</text>
-      <text class="card-no">{{ member.memberNo }}</text>
-      <view class="card-grid">
-        <view class="card-cell cell-date">
-          <text class="cell-label">到期</text>
-          <text class="cell-value">{{ formatDate(benefitEnd) }}</text>
+    <template v-if="!loggedIn">
+      <view class="guest-hero">
+        <view class="avatar guest-avatar">
+          <AppIcon name="user" :size="28" />
         </view>
-        <view class="card-cell">
-          <text class="cell-label">余额</text>
-          <text class="cell-value">{{ formatBalance(member.balance) }}</text>
+        <text class="pm-title guest-title">登录 / 注册</text>
+        <text class="pm-sub">登录后查看会员卡、订单、权益记录与 AI 作品</text>
+      </view>
+
+      <view class="pm-card guest-points">
+        <view class="guest-point">
+          <AppIcon name="sparkles" :size="18" />
+          <text>AI 写真、换装与图生视频</text>
         </view>
-        <view class="card-cell">
-          <text class="cell-label">积分</text>
-          <text class="cell-value">{{ member.points }}</text>
+        <view class="guest-point">
+          <AppIcon name="gift" :size="18" />
+          <text>每个会员周期领取 2 项权益</text>
+        </view>
+        <view class="guest-point">
+          <AppIcon name="ticket" :size="18" />
+          <text>专属工单与客服处理进度</text>
         </view>
       </view>
-    </view>
 
-    <view class="pm-card menu">
-      <view class="menu-row pm-tap" @click="openBenefit">
-        <view class="menu-icon"><AppIcon name="gift" :size="20" /></view>
-        <text class="menu-label">权益中心</text>
-        <AppIcon name="chevron-right" :size="18" />
-      </view>
-      <view class="menu-line"></view>
-      <view class="menu-row pm-tap" @click="openAi">
-        <view class="menu-icon"><AppIcon name="sparkles" :size="20" /></view>
-        <text class="menu-label">AI 创作</text>
-        <AppIcon name="chevron-right" :size="18" />
-      </view>
-      <view class="menu-line"></view>
-      <view class="menu-row pm-tap" @click="openTickets">
-        <view class="menu-icon"><AppIcon name="ticket" :size="20" /></view>
-        <text class="menu-label">我的工单</text>
-        <AppIcon name="chevron-right" :size="18" />
-      </view>
-    </view>
+      <button class="pm-btn pm-btn--primary guest-login" @click="goLogin">登录 / 注册</button>
+      <button class="pm-btn pm-btn--secondary guest-browse" @click="openBenefit">
+        先看看权益目录
+      </button>
+    </template>
 
-    <view class="pm-card menu">
-      <view class="menu-row pm-tap" @click="signOut">
-        <view class="menu-icon danger"><AppIcon name="logout" :size="20" /></view>
-        <text class="menu-label danger">{{ loggingOut ? '退出中' : '退出登录' }}</text>
+    <template v-else>
+      <view class="profile">
+        <view class="avatar">
+          <text class="avatar-text">{{ initial }}</text>
+        </view>
+        <view class="profile-copy">
+          <text class="pm-title name">{{ nickname || '会员账号' }}</text>
+          <text class="pm-sub">{{ phone }}</text>
+        </view>
       </view>
-    </view>
+
+      <view v-if="loading" class="pm-skeleton member-skeleton"></view>
+
+      <view v-else-if="error" class="pm-card state-card">
+        <text class="pm-notice">{{ error }}</text>
+        <button class="pm-btn pm-btn--secondary retry" @click="load">重新加载</button>
+      </view>
+
+      <view v-else-if="!member" class="pm-card state-card">
+        <text class="pm-body">该手机号还没有会员档案，请联系运营人员开通。</text>
+      </view>
+
+      <view v-else class="member-card">
+        <view class="card-head">
+          <text class="card-label">会员卡</text>
+          <text class="pm-pill" :class="member.status === 1 ? 'pm-pill--accent' : 'pm-pill--danger'">
+            {{ member.status === 1 ? '正常' : '停用' }}
+          </text>
+        </view>
+        <text class="card-level">{{ levelName(member.level) }}</text>
+        <text class="card-no">{{ member.memberNo }}</text>
+        <view class="card-grid">
+          <view class="card-cell cell-date">
+            <text class="cell-label">到期</text>
+            <text class="cell-value">{{ formatDate(benefitEnd) }}</text>
+          </view>
+          <view class="card-cell">
+            <text class="cell-label">余额</text>
+            <text class="cell-value">{{ formatBalance(member.balance) }}</text>
+          </view>
+          <view class="card-cell">
+            <text class="cell-label">积分</text>
+            <text class="cell-value">{{ member.points }}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="pm-card menu">
+        <view class="menu-row pm-tap" @click="openBenefit">
+          <view class="menu-icon"><AppIcon name="gift" :size="20" /></view>
+          <text class="menu-label">权益中心</text>
+          <AppIcon name="chevron-right" :size="18" />
+        </view>
+        <view class="menu-line"></view>
+        <view class="menu-row pm-tap" @click="openAi">
+          <view class="menu-icon"><AppIcon name="sparkles" :size="20" /></view>
+          <text class="menu-label">AI 创作</text>
+          <AppIcon name="chevron-right" :size="18" />
+        </view>
+        <view class="menu-line"></view>
+        <view class="menu-row pm-tap" @click="openTickets">
+          <view class="menu-icon"><AppIcon name="ticket" :size="20" /></view>
+          <text class="menu-label">我的工单</text>
+          <AppIcon name="chevron-right" :size="18" />
+        </view>
+      </view>
+
+      <view class="pm-card menu">
+        <view class="menu-row pm-tap" @click="signOut">
+          <view class="menu-icon danger"><AppIcon name="logout" :size="20" /></view>
+          <text class="menu-label danger">{{ loggingOut ? '退出中' : '退出登录' }}</text>
+        </view>
+      </view>
+    </template>
 
     <AppTabbar active="member" />
   </view>
 </template>
 
 <style scoped>
+.guest-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+
+.guest-avatar {
+  margin-bottom: var(--space-2);
+  color: var(--accent);
+}
+
+.guest-title {
+  margin-top: var(--space-1);
+}
+
+.guest-points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.guest-point {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--font-body);
+}
+
+.guest-point :deep(svg) {
+  color: var(--accent);
+}
+
+.guest-login {
+  margin-top: var(--space-6);
+}
+
+.guest-browse {
+  margin-top: var(--space-3);
+}
+
 .profile {
   display: flex;
   align-items: center;

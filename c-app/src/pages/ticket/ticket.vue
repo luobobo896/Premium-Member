@@ -9,6 +9,7 @@ import {
   getTicket,
   getTickets,
   getToken,
+  requireLogin,
   type TicketInfo,
 } from '../../api';
 import AppIcon from '../../components/AppIcon.vue';
@@ -89,7 +90,7 @@ function stepTime(step: string): string {
 function handleError(ex: unknown, fallback: string) {
   if (ex instanceof ApiError && ex.statusCode === 401) {
     clearToken();
-    uni.reLaunch({ url: '/pages/login/login' });
+    requireLogin('/pages/ticket/ticket');
     return;
   }
   error.value = ex instanceof Error ? ex.message : fallback;
@@ -97,7 +98,7 @@ function handleError(ex: unknown, fallback: string) {
 
 async function load(): Promise<void> {
   if (!getToken()) {
-    uni.reLaunch({ url: '/pages/login/login' });
+    requireLogin('/pages/ticket/ticket');
     return;
   }
   loading.value = true;

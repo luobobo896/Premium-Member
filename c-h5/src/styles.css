@@ -6,6 +6,12 @@
   --c-border: #ddd9d1;
   --c-accent: #2f6b5f;
   --c-accent-soft: #e7efec;
+  --c-cover-1-a: #2f6b5f;
+  --c-cover-1-b: #1c4039;
+  --c-cover-2-a: #4f4a6b;
+  --c-cover-2-b: #2d2a3d;
+  --c-cover-3-a: #6b5730;
+  --c-cover-3-b: #3d3220;
   --c-danger: #a83b32;
   --van-primary-color: var(--c-accent);
 }
@@ -50,12 +56,14 @@ input {
   max-width: 420px;
   padding: 4px;
   border: 1px solid var(--c-border);
-  border-radius: 999px;
+  flex-wrap: wrap;
+  border-radius: 16px;
   background: var(--c-surface);
 }
 
 .view-switch button {
-  flex: 1;
+  flex: 1 1 calc(25% - 4px);
+  min-width: 56px;
   height: 36px;
   border: 0;
   border-radius: 999px;
