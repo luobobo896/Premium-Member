@@ -1,9 +1,15 @@
 {
   "pages": [
     {
-      "path": "pages/index/index",
+      "path": "pages/login/login",
       "style": {
-        "navigationBarTitleText": "Premium Member"
+        "navigationBarTitleText": "登录会员账号"
+      }
+    },
+    {
+      "path": "pages/member/member",
+      "style": {
+        "navigationBarTitleText": "会员中心"
       }
     }
   ],

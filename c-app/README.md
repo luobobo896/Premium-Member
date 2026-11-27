@@ -1,6 +1,6 @@
 # c-app
 
-C 端 App 与小程序共用端，技术栈已确认：uni-app + Vue3 + TypeScript。当前只有最小可运行页面，不包含业务逻辑。
+C 端 App 与小程序共用端，uni-app + Vue3 + TypeScript。页面：登录、会员中心，接口走真实 c-server（默认 `http://127.0.0.1:8081`）。
 
 ## 启动
 
@@ -10,6 +10,8 @@ npm run dev:h5
 ```
 
 H5 调试默认访问 `http://127.0.0.1:5173`。
+
+登录成功把 access token 存 `uni.setStorageSync('c_access_token')`；会员页 401 会清理 token 并 `reLaunch` 回登录页。
 
 微信小程序：
 
@@ -36,4 +38,4 @@ App（Android/iOS）：用 HBuilderX 打开本目录运行，或用 uni-app CLI 
 | TypeScript | 4.9.5 |
 | vue-tsc | 1.8.27 |
 
-2026-11-27 实测：`npm install` 成功，`npm run dev:h5` 监听 `127.0.0.1:5173`，`curl -I` 返回 200；`npm run build:h5` 通过（Compiler version 5.34）。
+2026-11-27 实测：`npm run build:h5` 通过（Compiler version 5.34）；`npm run dev:h5` 监听 `127.0.0.1:5173`，已用 ego-browser 完成登录和会员页验证。截图见 `docs/screenshots/c-app-*.png`。
