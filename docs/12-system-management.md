@@ -29,8 +29,8 @@
 | GET | `/system/roles` | `system:role:list` | 分页；参数 `page`、`pageSize`、`code`、`name`、`status` |
 | GET | `/system/roles/options` | `system:role:list` | 全部启用角色，供用户分配角色 |
 | GET | `/system/roles/permissions` | `system:role:list` | 全部权限点，供角色分配权限 |
-| POST | `/system/roles` | `system:role:create` | 新增；`code`、`name`、`status`、`sort`、`remark` |
-| PUT | `/system/roles/{id}` | `system:role:update` | 编辑；`super_admin` 的角色码和状态不可修改 |
+| POST | `/system/roles` | `system:role:create` | 新增；`code`、`name`、`dataScope`、`status`、`sort`、`remark` |
+| PUT | `/system/roles/{id}` | `system:role:update` | 编辑；`super_admin` 的角色码、状态和数据范围不可修改 |
 | DELETE | `/system/roles/{id}` | `system:role:delete` | 删除；`super_admin` 或仍绑定用户的角色受保护 |
 | GET | `/system/roles/{id}/menus` | `system:role:list` | 已分配菜单 ID |
 | PUT | `/system/roles/{id}/menus` | `system:role:update` | 分配菜单；body `{"menuIds":[...]}` |
@@ -38,6 +38,7 @@
 | PUT | `/system/roles/{id}/permissions` | `system:role:update` | 分配权限；body `{"permissionIds":[...]}` |
 
 角色码规则：小写字母开头，仅字母、数字、下划线，长度 2-64。
+`dataScope` 取值 `ALL`、`DEPT_AND_CHILD`、`DEPT`、`SELF`，缺省为 `SELF`。
 
 ### 菜单
 
@@ -62,6 +63,14 @@
 
 旧的 `GET /system/menu/list`、`GET /system/dept/list` 保留，分别返回启用菜单树和启用部门树。
 
+### 操作日志
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/system/logs` | 仅 `super_admin` 角色 | 分页；`page`、`pageSize`、`username`、`module`、`startTime`、`endTime` |
+
+非超管返回 403 `FORBIDDEN`；表结构与保留策略见 `15-audit.md`。
+
 ## 错误码
 
 | bizCode | HTTP | 场景 |
@@ -84,6 +93,7 @@
 | 角色管理 | `/system/role` | 搜索、分页、新增/编辑抽屉、分配菜单树、分配权限点、删除 |
 | 菜单管理 | `/system/menu` | 树表、搜索、新增/编辑抽屉、删除 |
 | 部门管理 | `/system/dept` | 树表、搜索、新增/编辑抽屉、删除 |
+| 操作日志 | `/system/log` | 超管分页查询，按操作人/模块/时间过滤 |
 
 按钮通过 `v-access:code` 读取后端 `/auth/codes` 返回的权限码，不在前端硬编码角色名。
 新增/编辑使用抽屉 + VbenForm，列表使用 VbenVxeGrid：

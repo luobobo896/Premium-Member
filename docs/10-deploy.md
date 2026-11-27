@@ -134,7 +134,8 @@ cd c-h5  && npm install && npm run dev
 ## 7. 回滚
 
 - 应用回滚：切回上一个 jar 或镜像 digest，不需要回滚数据库结构。
-- 本轮 DDL 只新增表，没有修改已有表；旧版本应用可以继续运行。
+- 本轮新增 `sys_operation_log` 表，并给 `sys_role` 增加 `data_scope`、给 `pm_member`
+  增加 `owner_id`（带默认值或可空），旧版本应用可以继续运行。
 - 本地数据回滚：`cd deploy && docker compose down -v`，会删除本地卷。
 - 生产数据库变更必须先备份，再按扩展-迁移-切换-清理执行。
 

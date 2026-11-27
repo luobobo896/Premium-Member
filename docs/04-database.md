@@ -10,14 +10,15 @@
 | 表 | 说明 |
 |---|---|
 | `sys_user` | 用户，BCrypt 密码哈希、部门、状态、主页 |
-| `sys_role` | 角色，`code` 对应 vben `roles` |
+| `sys_role` | 角色，`code` 对应 vben `roles`，`data_scope` 控制数据范围 |
 | `sys_permission` | 权限码，`code` 对应 vben `/auth/codes` 与按钮权限 |
 | `sys_menu` | 目录/菜单/按钮/外链，`permission_code` 关联权限码 |
 | `sys_dept` | 部门树 |
 | `sys_user_role` | 用户-角色 |
 | `sys_role_permission` | 角色-权限 |
 | `sys_role_menu` | 角色-菜单 |
-| `pm_member` | 会员业务示例 |
+| `pm_member` | 会员业务示例，`owner_id` 关联创建人用于数据权限 |
+| `sys_operation_log` | 操作审计日志，AOP 异步写入 |
 
 关系：
 
@@ -35,6 +36,8 @@ sys_user N---1 sys_dept
 - 逻辑删除字段 `deleted`，值为 0/1；唯一索引使用 partial index，只约束未删除行。
 - 用户名、角色码、权限码、会员编号都有唯一索引。
 - 会员等级与状态有 CHECK 约束；积分、余额不允许负数。
+- 角色数据范围 `data_scope` 限定为 `ALL/DEPT_AND_CHILD/DEPT/SELF`。
+- 审计日志按 `created_at DESC`、`user_id` 建索引，保留策略见 `15-audit.md`。
 - 排序字段 `sort` 用于菜单和部门树稳定排序；菜单位置由 `parent_id + sort + id` 决定。
 
 ## 首次初始化
@@ -57,7 +60,8 @@ docker compose exec -T postgres \
   -c "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"
 ```
 
-实测结果：9 张表，`sys_user=3`、`sys_menu=27`、`sys_permission=22`、`pm_member=3`。
+实测结果：10 张表，`sys_user=5`、`sys_role=5`、`sys_menu=28`、`sys_permission=23`、
+`pm_member=5`、`sys_operation_log` 从 0 开始累计。
 
 ## 种子账号
 
@@ -68,6 +72,8 @@ docker compose exec -T postgres \
 | `admin` | `Admin@123456` | `super_admin` |
 | `operator` | `Operator@123456` | `operator` |
 | `viewer` | `Viewer@123456` | `viewer` |
+| `dept_manager` | `Admin@123456` | `dept_manager`（DEPT） |
+| `self_manager` | `Admin@123456` | `self_manager`（SELF） |
 
 密码以 BCrypt `$2y$` 哈希存储，Spring `BCryptPasswordEncoder` 可直接校验。生产环境不得复用这些账号或密码。
 
