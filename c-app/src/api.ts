@@ -1,4 +1,6 @@
-const API_BASE = 'http://127.0.0.1:8081';
+const API_BASE =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+  'http://127.0.0.1:8081';
 const TOKEN_KEY = 'c_access_token';
 const LOGIN_REDIRECT_KEY = 'pm_login_redirect';
 const PENDING_CLAIM_KEY = 'pm_pending_claim';

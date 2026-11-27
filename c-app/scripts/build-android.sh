@@ -5,9 +5,33 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 
+if [ -z "${VITE_API_BASE_URL:-}" ]; then
+  echo "VITE_API_BASE_URL is required for app builds (e.g. http://10.0.2.2:9081 for the emulator)" >&2
+  exit 1
+fi
+
 npm run build:h5
 [ -d android ] || npx cap add android
 npx cap sync android
+
+# android/ 未入库，每次构建补上调试用明文白名单（仅模拟器/本机地址）
+mkdir -p android/app/src/main/res/xml
+cat > android/app/src/main/res/xml/network_security_config.xml <<'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
+XML
+
+if ! grep -q 'android:networkSecurityConfig' android/app/src/main/AndroidManifest.xml; then
+  sed -i '' 's|<application|<application android:networkSecurityConfig="@xml/network_security_config"|' \
+    android/app/src/main/AndroidManifest.xml
+fi
 
 # android/ 未入库，模板默认 versionName "1.0"，每次构建写回
 sed -i '' 's/versionName ".*"/versionName "1.0.0"/' android/app/build.gradle
