@@ -30,6 +30,9 @@ app:
     retention-enabled: ${AUDIT_RETENTION_ENABLED:true}
     retention-days: ${AUDIT_RETENTION_DAYS:90}
     retention-cron: ${AUDIT_RETENTION_CRON:0 0 3 * * *}
+  benefit:
+    card-secret: ${BENEFIT_CARD_SECRET:premium-member-dev-only-card-secret}
+    low-stock-threshold: ${BENEFIT_LOW_STOCK_THRESHOLD:5}
 
 mybatis-plus:
   configuration:

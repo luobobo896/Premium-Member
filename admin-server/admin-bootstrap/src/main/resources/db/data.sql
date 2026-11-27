@@ -45,7 +45,15 @@ INSERT INTO sys_permission (id, code, name, type, description) VALUES
     (20, 'member:create', '创建会员', 'BUTTON', '创建会员'),
     (21, 'member:update', '编辑会员', 'BUTTON', '编辑会员'),
     (22, 'member:delete', '删除会员', 'BUTTON', '删除会员'),
-    (23, 'system:log:list', '操作日志', 'API', '查询操作日志')
+    (23, 'system:log:list', '操作日志', 'API', '查询操作日志'),
+    (24, 'benefit:product:list', '权益商品列表', 'API', '查询权益商品与库存'),
+    (25, 'benefit:product:create', '新增权益商品', 'BUTTON', '新增权益商品'),
+    (26, 'benefit:product:update', '编辑权益商品', 'BUTTON', '编辑权益商品'),
+    (27, 'benefit:product:delete', '删除权益商品', 'BUTTON', '删除或下架权益商品'),
+    (28, 'benefit:card:list', '卡密列表', 'API', '查询卡密（脱敏）'),
+    (29, 'benefit:card:import', '导入卡密', 'BUTTON', '批量导入卡密'),
+    (30, 'benefit:claim:list', '领取单列表', 'API', '查询权益领取单'),
+    (31, 'benefit:claim:review', '人工核实', 'BUTTON', '人工核实、补偿或撤销领取单')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, title, icon,
@@ -105,7 +113,23 @@ INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, titl
     (25, 20, 'SystemLog', '/system/log', '/system/log/index', NULL, 'menu', '操作日志',
      'carbon:document', 'system:log:list', 5, 1, 1, 0, 0, 0),
     (30, 0, 'About', '/about', '/_core/about/index', NULL, 'menu', '关于',
-     'lucide:copyright', NULL, 9999, 1, 1, 0, 0, 0)
+     'lucide:copyright', NULL, 9999, 1, 1, 0, 0, 0),
+    (40, 0, 'Benefit', '/benefit', '/benefit/index', NULL, 'menu', '权益管理',
+     'lucide:gift', 'benefit:product:list', 15, 1, 1, 0, 0, 0),
+    (401, 40, 'BenefitProductCreate', '', NULL, NULL, 'button', '新增权益商品',
+     NULL, 'benefit:product:create', 1, 1, 1, 0, 0, 0),
+    (402, 40, 'BenefitProductUpdate', '', NULL, NULL, 'button', '编辑权益商品',
+     NULL, 'benefit:product:update', 2, 1, 1, 0, 0, 0),
+    (403, 40, 'BenefitProductDelete', '', NULL, NULL, 'button', '删除权益商品',
+     NULL, 'benefit:product:delete', 3, 1, 1, 0, 0, 0),
+    (404, 40, 'BenefitCardList', '', NULL, NULL, 'button', '查看卡密',
+     NULL, 'benefit:card:list', 4, 1, 1, 0, 0, 0),
+    (405, 40, 'BenefitCardImport', '', NULL, NULL, 'button', '导入卡密',
+     NULL, 'benefit:card:import', 5, 1, 1, 0, 0, 0),
+    (406, 40, 'BenefitClaimList', '', NULL, NULL, 'button', '查看领取单',
+     NULL, 'benefit:claim:list', 6, 1, 1, 0, 0, 0),
+    (407, 40, 'BenefitClaimReview', '', NULL, NULL, 'button', '人工核实领取单',
+     NULL, 'benefit:claim:review', 7, 1, 1, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_user (id, username, password_hash, real_name, avatar, description, home_path,
@@ -206,9 +230,24 @@ ON CONFLICT (id) DO NOTHING;
 
 UPDATE pm_member SET owner_id = id WHERE owner_id IS NULL AND id IN (1, 2, 3, 4, 5, 6);
 
+INSERT INTO pm_member_period (id, member_id, period_no, start_at, end_at, status, order_id) VALUES
+    (1, 1, '2026-11', now() - INTERVAL '5 days', now() + INTERVAL '25 days', 'ACTIVE', NULL)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO benefit_product (id, sku_code, name, description, rules, status, sort) VALUES
+    (1, 'COFFEE_30', '咖啡兑换券', '中杯手冲咖啡一杯，门店自取。',
+     '到店出示卡密兑换；卡密仅展示一次，请及时保存；有效期以卡密为准。', 1, 1),
+    (2, 'MOVIE_1', '电影票一张', '合作影院普通厅电影票一张。',
+     '在合作影院选座页面输入卡密兑换；不可退换；有效期以卡密为准。', 1, 2),
+    (3, 'STORAGE_50G', '云存储 50G', '会员专属 50G 云存储扩容一年。',
+     '在个人中心-云存储页面输入卡密开通；到期不自动续费。', 1, 3)
+ON CONFLICT (id) DO NOTHING;
+
 SELECT setval(pg_get_serial_sequence('sys_dept', 'id'), (SELECT MAX(id) FROM sys_dept));
 SELECT setval(pg_get_serial_sequence('sys_role', 'id'), (SELECT MAX(id) FROM sys_role));
 SELECT setval(pg_get_serial_sequence('sys_permission', 'id'), (SELECT MAX(id) FROM sys_permission));
 SELECT setval(pg_get_serial_sequence('sys_menu', 'id'), (SELECT MAX(id) FROM sys_menu));
 SELECT setval(pg_get_serial_sequence('sys_user', 'id'), (SELECT MAX(id) FROM sys_user));
 SELECT setval(pg_get_serial_sequence('pm_member', 'id'), (SELECT MAX(id) FROM pm_member));
+SELECT setval(pg_get_serial_sequence('pm_member_period', 'id'), (SELECT MAX(id) FROM pm_member_period));
+SELECT setval(pg_get_serial_sequence('benefit_product', 'id'), (SELECT MAX(id) FROM benefit_product));
