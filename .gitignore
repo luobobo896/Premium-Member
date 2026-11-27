@@ -14,6 +14,9 @@ dist.zip
 .vite/
 *.tsbuildinfo
 
+# Capacitor Android 原生工程（生成物，不入库）
+c-app/android/
+
 # IDE / OS
 .idea/
 .vscode/
