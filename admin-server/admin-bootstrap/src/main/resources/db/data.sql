@@ -66,7 +66,15 @@ INSERT INTO sys_permission (id, code, name, type, description) VALUES
     (41, 'ai:template:update', '编辑 AI 模板', 'BUTTON', '编辑或上下架 AI 模板'),
     (42, 'ai:template:delete', '删除 AI 模板', 'BUTTON', '删除 AI 模板'),
     (43, 'ai:task:list', 'AI 任务查询', 'API', '分页查询 AI 任务'),
-    (44, 'ai:usage:list', 'AI 用量日报', 'API', '查询 AI 每日用量')
+    (44, 'ai:usage:list', 'AI 用量日报', 'API', '查询 AI 每日用量'),
+    (45, 'ticket:list', '工单列表', 'API', '分页查询客服工单'),
+    (46, 'ticket:handle', '工单处理', 'BUTTON', '受理、回复、改状态与备注'),
+    (47, 'content:list', '内容配置列表', 'API', '查询内容配置与版本历史'),
+    (48, 'content:update', '编辑内容草稿', 'BUTTON', '新增或编辑内容草稿'),
+    (49, 'content:publish', '发布内容', 'BUTTON', '发布内容草稿'),
+    (50, 'content:rollback', '回滚内容', 'BUTTON', '回滚到上一已发布版本'),
+    (51, 'stats:daily', '统计日报', 'API', '查询每日运营统计'),
+    (52, 'stats:export', '统计导出', 'BUTTON', '导出统计 CSV 并记录审计')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, title, icon,
@@ -168,7 +176,23 @@ INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, titl
     (604, 60, 'AiTaskList', '', NULL, NULL, 'button', 'AI 任务查询',
      NULL, 'ai:task:list', 4, 1, 1, 0, 0, 0),
     (605, 60, 'AiUsageList', '', NULL, NULL, 'button', 'AI 用量日报',
-     NULL, 'ai:usage:list', 5, 1, 1, 0, 0, 0)
+     NULL, 'ai:usage:list', 5, 1, 1, 0, 0, 0),
+    (70, 0, 'Ticket', '/tickets', '/tickets/index', NULL, 'menu', '工单管理',
+     'lucide:headphones', 'ticket:list', 18, 1, 1, 0, 0, 0),
+    (701, 70, 'TicketHandle', '', NULL, NULL, 'button', '工单处理',
+     NULL, 'ticket:handle', 1, 1, 1, 0, 0, 0),
+    (80, 0, 'Content', '/contents', '/content/index', NULL, 'menu', '内容配置',
+     'lucide:file-text', 'content:list', 19, 1, 1, 0, 0, 0),
+    (801, 80, 'ContentUpdate', '', NULL, NULL, 'button', '编辑内容草稿',
+     NULL, 'content:update', 1, 1, 1, 0, 0, 0),
+    (802, 80, 'ContentPublish', '', NULL, NULL, 'button', '发布内容',
+     NULL, 'content:publish', 2, 1, 1, 0, 0, 0),
+    (803, 80, 'ContentRollback', '', NULL, NULL, 'button', '回滚内容',
+     NULL, 'content:rollback', 3, 1, 1, 0, 0, 0),
+    (90, 0, 'Stats', '/stats', '/stats/index', NULL, 'menu', '运营统计',
+     'lucide:chart-column', 'stats:daily', 20, 1, 1, 0, 0, 0),
+    (901, 90, 'StatsExport', '', NULL, NULL, 'button', '导出统计',
+     NULL, 'stats:export', 1, 1, 1, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_user (id, username, password_hash, real_name, avatar, description, home_path,
@@ -348,6 +372,17 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT 1, id FROM sys_menu WHERE id BETWEEN 60 AND 605
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission
+WHERE code IN ('ticket:list', 'ticket:handle',
+               'content:list', 'content:update', 'content:publish', 'content:rollback',
+               'stats:daily', 'stats:export')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+SELECT 1, id FROM sys_menu WHERE id BETWEEN 70 AND 901
 ON CONFLICT DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('sys_dept', 'id'), (SELECT MAX(id) FROM sys_dept));
