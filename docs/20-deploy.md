@@ -23,6 +23,10 @@
 | `/c-api/` | c-server，转发时去掉 `/c-api` 前缀 |
 | `/healthz` | 网关自身健康检查 |
 
+`/c-api/` 的口径：`proxy_pass http://c-server:8081/`（末尾单斜杠，去掉 `/c-api` 前缀后直连 c-server 根），
+前端请求路径自带 `/c`，例如 `GET /c-api/c/plans`。若把这里改成 `.../c/`，所有 C 端接口会变成 `/c/c/...` 并返回 401。
+`deploy/nginx.conf` 是历史遗留文件，没有任何 Dockerfile 使用，改网关请改 `deploy/nginx/gateway-locations.inc`。
+
 PostgreSQL、Redis 不映射宿主机端口，只在 compose 网络内可达。
 
 ## 2. 首次部署

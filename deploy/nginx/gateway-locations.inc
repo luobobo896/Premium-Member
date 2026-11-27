@@ -17,7 +17,7 @@ location /api/ {
 }
 
 location /c-api/ {
-    proxy_pass http://c-server:8081/c/;
+    proxy_pass http://c-server:8081/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;

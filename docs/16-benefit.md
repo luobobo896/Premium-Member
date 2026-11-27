@@ -20,6 +20,8 @@ DDL 在 `admin-server/admin-bootstrap/src/main/resources/db/schema.sql`，可重
 补充说明：
 
 - 卡密用 AES-256-GCM 加密，`code_hash = SHA-256(明文)` 用于唯一约束和幂等导入；`code_mask` 形如 `COFF****01`。
+- 掩码只保留前 4 后 2，测试卡密（GUEST-COFFEE-20261127 / GUEST-MOVIE-20261127）共享前后缀，因此出现相同的
+  `GUES****27`；它们是不同卡（code_hash 不同），不是重复数据，也不是掩码 bug。
 - `benefit_card.claim_id` 记录卡密当前绑定的领取单，失败回退时按 `claim_id` 条件更新，避免误退后来被重新发出的卡。
 - `order_id` 可空，本期没有订单支付链路，保留字段给后续订单关联。
 
