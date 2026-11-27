@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 
 import {
   ApiError,
   clearToken,
-  getContents,
+  getBenefits,
   getInfo,
   getMember,
   getToken,
   logout,
   type MemberInfo,
 } from '../../api';
+import AppIcon from '../../components/AppIcon.vue';
+import AppTabbar from '../../components/AppTabbar.vue';
 
 const LEVELS: Record<string, string> = {
   BASIC: '基础会员',
@@ -23,18 +25,19 @@ const LEVELS: Record<string, string> = {
 const nickname = ref('');
 const phone = ref('');
 const member = ref<MemberInfo | null>(null);
+const benefitEnd = ref('');
 const loading = ref(true);
 const error = ref('');
 const loggingOut = ref(false);
-const banners = ref<Array<{ imageUrl?: string; title?: string }>>([
-  { title: '会员专属权益' },
-]);
+
+const initial = computed(() => (nickname.value || '会').slice(0, 1));
 
 function levelName(level: string): string {
   return LEVELS[level] ?? level;
 }
 
-function formatDate(value: string): string {
+function formatDate(value: null | string): string {
+  if (!value) return '-';
   const date = new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
     date.getDate(),
@@ -53,21 +56,25 @@ async function load(): Promise<void> {
   loading.value = true;
   error.value = '';
   try {
-    const [info, memberInfo] = await Promise.all([getInfo(), getMember()]);
+    const info = await getInfo();
     nickname.value = info.nickname;
     phone.value = info.phone;
-    member.value = memberInfo;
+    try {
+      member.value = await getMember();
+    } catch (ex) {
+      if (ex instanceof ApiError && ex.bizCode === 'MEMBER_NOT_FOUND') {
+        member.value = null;
+        benefitEnd.value = '';
+        return;
+      }
+      throw ex;
+    }
+    const center = await getBenefits().catch(() => null);
+    benefitEnd.value = center?.period?.endAt ?? '';
   } catch (ex) {
     if (ex instanceof ApiError && ex.statusCode === 401) {
       clearToken();
       uni.reLaunch({ url: '/pages/login/login' });
-      return;
-    }
-    if (ex instanceof ApiError && ex.bizCode === 'MEMBER_NOT_FOUND') {
-      const info = await getInfo();
-      nickname.value = info.nickname;
-      phone.value = info.phone;
-      member.value = null;
       return;
     }
     error.value = ex instanceof Error ? ex.message : '加载失败，请稍后重试';
@@ -86,292 +93,282 @@ async function signOut(): Promise<void> {
   }
 }
 
-async function loadBanners(): Promise<void> {
-  try {
-    const items = await getContents(['BANNER']);
-    const item = items.find((row) => row.key === 'BANNER');
-    if (!item) return;
-    const config = JSON.parse(item.contentJson) as {
-      items?: Array<{ imageUrl?: string; title?: string }>;
-    };
-    if (config.items?.length) {
-      banners.value = config.items;
-    }
-  } catch {
-    // 无配置或 JSON 异常时保留默认轮播。
-  }
-}
-
 function openBenefit(): void {
-  uni.navigateTo({ url: '/pages/benefit/benefit' });
+  uni.reLaunch({ url: '/pages/benefit/benefit' });
 }
 
 function openAi(): void {
-  uni.navigateTo({ url: '/pages/ai/ai' });
+  uni.reLaunch({ url: '/pages/ai/ai' });
 }
 
 function openTickets(): void {
   uni.navigateTo({ url: '/pages/ticket/ticket' });
 }
 
-onShow(() => {
-  load();
-  loadBanners();
-});
+onShow(load);
 </script>
 
 <template>
-  <view class="screen">
-    <swiper
-      v-if="banners.length"
-      autoplay
-      circular
-      class="banner"
-      indicator-dots
-    >
-      <swiper-item v-for="(banner, index) in banners" :key="index">
-        <image
-          v-if="banner.imageUrl"
-          class="banner-image"
-          mode="aspectFill"
-          :src="banner.imageUrl"
-        />
-        <view v-else class="banner-fallback">
-          <text class="banner-title">{{ banner.title || '会员专属权益' }}</text>
-          <text class="banner-sub">Premium Member</text>
-        </view>
-      </swiper-item>
-    </swiper>
-    <view class="card">
-      <view class="header">
-        <view>
-          <text class="eyebrow">会员中心</text>
-          <text class="title">{{ nickname || '会员账号' }}</text>
-          <text class="lede">{{ phone }}</text>
-          <text v-if="member" class="pill" :class="{ inactive: member.status !== 1 }">
-            {{ member.status === 1 ? '正常' : '停用' }}
-          </text>
-        </view>
+  <view class="pm-page">
+    <view class="profile">
+      <view class="avatar">
+        <text class="avatar-text">{{ initial }}</text>
       </view>
-
-      <text v-if="loading" class="state">正在加载会员信息…</text>
-
-      <view v-else-if="error" class="state-block">
-        <text class="error">{{ error }}</text>
-        <button class="secondary-button" @click="load">重新加载</button>
+      <view class="profile-copy">
+        <text class="pm-title name">{{ nickname || '会员账号' }}</text>
+        <text class="pm-sub">{{ phone }}</text>
       </view>
-
-      <view v-else-if="!member" class="state-block">
-        <text class="state">该手机号还没有会员档案，请联系运营人员开通。</text>
-      </view>
-
-      <view v-else class="member-body">
-        <text class="member-no">{{ member.memberNo }}</text>
-        <view class="grid">
-          <view class="item">
-            <text class="item-label">等级</text>
-            <text class="item-value">{{ levelName(member.level) }}</text>
-          </view>
-          <view class="item">
-            <text class="item-label">积分</text>
-            <text class="item-value">{{ member.points }}</text>
-          </view>
-          <view class="item">
-            <text class="item-label">余额</text>
-            <text class="item-value">{{ formatBalance(member.balance) }}</text>
-          </view>
-          <view class="item">
-            <text class="item-label">入会时间</text>
-            <text class="item-value">{{ formatDate(member.joinedAt) }}</text>
-          </view>
-        </view>
-      </view>
-
-      <button class="secondary-button benefit-entry" @click="openBenefit">权益中心</button>
-      <button class="secondary-button benefit-entry" @click="openTickets">我的工单</button>
-      <button class="secondary-button benefit-entry" @click="openAi">AI 创作</button>
-      <button class="secondary-button logout" :loading="loggingOut" @click="signOut">
-        {{ loggingOut ? '退出中' : '退出登录' }}
-      </button>
     </view>
+
+    <view v-if="loading" class="pm-skeleton member-skeleton"></view>
+
+    <view v-else-if="error" class="pm-card state-card">
+      <text class="pm-notice">{{ error }}</text>
+      <button class="pm-btn pm-btn--secondary retry" @click="load">重新加载</button>
+    </view>
+
+    <view v-else-if="!member" class="pm-card state-card">
+      <text class="pm-body">该手机号还没有会员档案，请联系运营人员开通。</text>
+    </view>
+
+    <view v-else class="member-card">
+      <view class="card-head">
+        <text class="card-label">会员卡</text>
+        <text class="pm-pill" :class="member.status === 1 ? 'pm-pill--accent' : 'pm-pill--danger'">
+          {{ member.status === 1 ? '正常' : '停用' }}
+        </text>
+      </view>
+      <text class="card-level">{{ levelName(member.level) }}</text>
+      <text class="card-no">{{ member.memberNo }}</text>
+      <view class="card-grid">
+        <view class="card-cell cell-date">
+          <text class="cell-label">到期</text>
+          <text class="cell-value">{{ formatDate(benefitEnd) }}</text>
+        </view>
+        <view class="card-cell">
+          <text class="cell-label">余额</text>
+          <text class="cell-value">{{ formatBalance(member.balance) }}</text>
+        </view>
+        <view class="card-cell">
+          <text class="cell-label">积分</text>
+          <text class="cell-value">{{ member.points }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="pm-card menu">
+      <view class="menu-row pm-tap" @click="openBenefit">
+        <view class="menu-icon"><AppIcon name="gift" :size="20" /></view>
+        <text class="menu-label">权益中心</text>
+        <AppIcon name="chevron-right" :size="18" />
+      </view>
+      <view class="menu-line"></view>
+      <view class="menu-row pm-tap" @click="openAi">
+        <view class="menu-icon"><AppIcon name="sparkles" :size="20" /></view>
+        <text class="menu-label">AI 创作</text>
+        <AppIcon name="chevron-right" :size="18" />
+      </view>
+      <view class="menu-line"></view>
+      <view class="menu-row pm-tap" @click="openTickets">
+        <view class="menu-icon"><AppIcon name="ticket" :size="20" /></view>
+        <text class="menu-label">我的工单</text>
+        <AppIcon name="chevron-right" :size="18" />
+      </view>
+    </view>
+
+    <view class="pm-card menu">
+      <view class="menu-row pm-tap" @click="signOut">
+        <view class="menu-icon danger"><AppIcon name="logout" :size="20" /></view>
+        <text class="menu-label danger">{{ loggingOut ? '退出中' : '退出登录' }}</text>
+      </view>
+    </view>
+
+    <AppTabbar active="member" />
   </view>
 </template>
 
 <style scoped>
-.screen {
-  min-height: 100vh;
-  padding: 48rpx 32rpx;
+.profile {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.avatar {
+  display: flex;
+  width: 64px;
+  height: 64px;
   align-items: center;
   justify-content: center;
-  gap: 28rpx;
-  background: #f4f2ed;
-}
-
-.banner {
-  width: 100%;
-  max-width: 680rpx;
-  height: 240rpx;
   overflow: hidden;
-  border-radius: 24rpx;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(150deg, var(--member-a), var(--surface));
 }
 
-.banner-image {
-  width: 100%;
-  height: 240rpx;
+.avatar-text {
+  color: var(--accent);
+  font-size: var(--font-hero);
+  font-weight: 600;
 }
 
-.banner-fallback {
-  width: 100%;
-  height: 240rpx;
-  padding: 48rpx 40rpx;
-  box-sizing: border-box;
+.profile-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-skeleton {
+  height: 196px;
+}
+
+.state-card {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  background: linear-gradient(135deg, #2f6b5f, #7d9e8c);
+  gap: var(--space-3);
 }
 
-.banner-title {
-  color: #fffdf9;
-  font-size: 40rpx;
+.retry {
+  margin-top: var(--space-1);
+}
+
+.member-card {
+  position: relative;
+  padding: var(--space-4);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: linear-gradient(135deg, var(--member-a), var(--member-b));
+}
+
+.member-card::after {
+  position: absolute;
+  top: -90px;
+  right: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(61, 220, 151, 0.2), transparent 66%);
+  content: '';
+}
+
+.card-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 1;
+}
+
+.card-label {
+  color: var(--text-muted);
+  font-size: var(--font-sub);
+}
+
+.card-level {
+  position: relative;
+  display: block;
+  margin-top: var(--space-4);
+  color: var(--text);
+  font-size: var(--font-hero);
   font-weight: 600;
+  line-height: 1.3;
+  z-index: 1;
 }
 
-.banner-sub {
-  margin-top: 12rpx;
-  color: rgba(255, 253, 249, 0.78);
-  font-size: 24rpx;
-  letter-spacing: 2rpx;
-}
-
-.card {
-  width: 100%;
-  max-width: 680rpx;
-  padding: 56rpx 40rpx 40rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 32rpx;
-  background: #fffdf9;
-}
-
-.header {
+.card-no {
+  position: relative;
   display: block;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-sub);
+  z-index: 1;
 }
 
-.eyebrow {
-  display: block;
-  color: #2f6b5f;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.title {
-  display: block;
-  margin-top: 16rpx;
-  color: #1f2421;
-  font-size: 56rpx;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.lede {
-  display: block;
-  margin-top: 12rpx;
-  color: #5c645f;
-  font-size: 28rpx;
-}
-
-.pill {
-  display: inline-block;
-  margin-top: 20rpx;
-  padding: 8rpx 24rpx;
-  border-radius: 999rpx;
-  background: #e7efec;
-  color: #2f6b5f;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.pill.inactive {
-  background: #f4e5e3;
-  color: #a83b32;
-}
-
-.state {
-  display: block;
-  margin-top: 48rpx;
-  color: #5c645f;
-  font-size: 28rpx;
-}
-
-.state-block {
-  margin-top: 32rpx;
-}
-
-.error {
-  display: block;
-  color: #a83b32;
-  font-size: 28rpx;
-}
-
-.member-body {
-  margin-top: 40rpx;
-}
-
-.member-no {
-  display: block;
-  padding: 24rpx 32rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 16rpx;
-  color: #1f2421;
-  font-size: 32rpx;
-  font-weight: 600;
-}
-
-.grid {
+.card-grid {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
-  margin-top: 24rpx;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  z-index: 1;
 }
 
-.item {
-  width: 50%;
-  margin-top: 24rpx;
+.card-cell {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
 }
 
-.item-label {
+.cell-date {
+  flex-basis: 100%;
+}
+
+.cell-label {
   display: block;
-  color: #5c645f;
-  font-size: 28rpx;
+  color: var(--text-muted);
+  font-size: var(--font-sub);
 }
 
-.item-value {
+.cell-value {
   display: block;
-  margin-top: 8rpx;
-  color: #1f2421;
-  font-size: 36rpx;
+  margin-top: var(--space-1);
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.secondary-button {
-  height: 88rpx;
-  margin-top: 40rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 16rpx;
-  background: transparent;
-  color: #1f2421;
-  font-size: 32rpx;
-  line-height: 88rpx;
+.menu {
+  margin-top: var(--space-4);
+  padding: 0 var(--space-4);
 }
 
-.logout {
-  margin-top: 48rpx;
+.menu-row {
+  display: flex;
+  height: 56px;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-muted);
 }
 
-.benefit-entry {
-  margin-top: 32rpx;
-  background: #2f6b5f;
-  color: #ffffff;
+.menu-icon {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--overlay);
+  color: var(--text-muted);
+}
+
+.menu-label {
+  flex: 1;
+  color: var(--text);
+  font-size: var(--font-body);
+}
+
+.menu-line {
+  height: 1px;
+  margin-left: var(--space-12);
+  background: var(--line);
+}
+
+.danger {
+  color: var(--danger);
 }
 </style>

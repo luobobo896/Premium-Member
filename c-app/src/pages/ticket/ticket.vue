@@ -11,6 +11,7 @@ import {
   getToken,
   type TicketInfo,
 } from '../../api';
+import AppIcon from '../../components/AppIcon.vue';
 
 const CATEGORY_OPTIONS = [
   { label: '订单问题', value: 'ORDER' },
@@ -56,8 +57,11 @@ function categoryLabel(value: string): string {
   return CATEGORY_OPTIONS.find((item) => item.value === value)?.label ?? value;
 }
 
-function statusClass(status: string): string {
-  return `status-${status.toLowerCase()}`;
+function statusPill(status: string): string {
+  if (status === 'OPEN') return 'pm-pill--danger';
+  if (status === 'PROCESSING') return 'pm-pill--warning';
+  if (status === 'RESOLVED') return 'pm-pill--accent';
+  return '';
 }
 
 function formatTime(value: null | string | undefined): string {
@@ -74,9 +78,7 @@ function stepTime(step: string): string {
   if (!selected.value) return '';
   if (step === 'OPEN') return formatTime(selected.value.createdAt);
   if (step === 'PROCESSING') {
-    return selected.value.status === 'PROCESSING'
-      ? formatTime(selected.value.updatedAt)
-      : '';
+    return selected.value.status === 'PROCESSING' ? formatTime(selected.value.updatedAt) : '';
   }
   if (step === 'RESOLVED' || step === 'CLOSED') {
     return selected.value.resolvedAt ? formatTime(selected.value.resolvedAt) : '';
@@ -171,340 +173,302 @@ async function submit(): Promise<void> {
   }
 }
 
+function back(): void {
+  const pages = getCurrentPages();
+  if (pages.length > 1) {
+    uni.navigateBack({ delta: 1 });
+    return;
+  }
+  uni.reLaunch({ url: '/pages/member/member' });
+}
+
 onShow(load);
 </script>
 
 <template>
-  <view class="screen">
-    <view class="card">
-      <view class="header">
-        <text class="eyebrow">客服支持</text>
-        <text class="title">我的工单</text>
-        <text class="lede">提交问题后由客服受理，处理进度与回复会显示在这里。</text>
+  <view class="pm-page pm-page--plain">
+    <view class="nav">
+      <view class="back pm-tap" aria-label="返回" @click="back">
+        <AppIcon name="arrow-left" :size="22" />
       </view>
+      <text class="pm-title">我的工单</text>
+    </view>
+    <text class="pm-sub lede">提交问题后由客服受理，处理进度与回复会显示在这里。</text>
 
-      <button v-if="!showForm" class="primary-button" @click="startCreate">新建工单</button>
+    <button v-if="!showForm && !selected" class="pm-btn pm-btn--primary new" @click="startCreate">
+      新建工单
+    </button>
 
-      <text v-if="loading" class="state">正在加载工单…</text>
-      <text v-else-if="error" class="error">{{ error }}</text>
+    <view v-if="loading" class="skeleton-list">
+      <view class="pm-skeleton skeleton-row"></view>
+      <view class="pm-skeleton skeleton-row"></view>
+    </view>
 
-      <view v-if="showForm" class="form-card">
-        <text class="section-title">新建工单</text>
-        <text class="field-label">分类</text>
-        <picker
-          mode="selector"
-          :range="CATEGORY_OPTIONS"
-          range-key="label"
-          :value="categoryIndex"
-          @change="onCategoryChange"
+    <view v-else-if="error && !selected && !showForm" class="pm-card state-card">
+      <text class="pm-notice">{{ error }}</text>
+      <button class="pm-btn pm-btn--secondary" @click="load">重新加载</button>
+    </view>
+
+    <view v-if="showForm" class="pm-card form-card">
+      <text class="pm-section">新建工单</text>
+      <text class="field-label">分类</text>
+      <picker
+        mode="selector"
+        :range="CATEGORY_OPTIONS"
+        range-key="label"
+        :value="categoryIndex"
+        @change="onCategoryChange"
+      >
+        <view class="pm-input picker">{{ CATEGORY_OPTIONS[categoryIndex]?.label }}</view>
+      </picker>
+      <text class="field-label">标题</text>
+      <input
+        v-model="form.title"
+        class="pm-input field"
+        maxlength="128"
+        placeholder="一句话说明问题"
+        placeholder-class="pm-placeholder"
+      />
+      <text class="field-label">订单号（可选）</text>
+      <input
+        v-model="form.orderNo"
+        class="pm-input field"
+        maxlength="40"
+        placeholder="如 PM202611270001"
+        placeholder-class="pm-placeholder"
+      />
+      <text class="field-label">问题描述</text>
+      <textarea
+        v-model="form.content"
+        class="pm-textarea field"
+        maxlength="5000"
+        placeholder="请补充发生时间、操作步骤和期望结果"
+        placeholder-class="pm-placeholder"
+      />
+      <text v-if="formError" class="pm-notice form-error">{{ formError }}</text>
+      <view class="form-actions">
+        <button class="pm-btn pm-btn--secondary" @click="cancelCreate">取消</button>
+        <button class="pm-btn pm-btn--primary" :loading="submitting" @click="submit">
+          提交工单
+        </button>
+      </view>
+    </view>
+
+    <view v-if="selected" class="pm-card detail-card">
+      <view class="detail-head">
+        <button class="back-list pm-tap" @click="selected = null">← 返回列表</button>
+        <text class="pm-pill" :class="statusPill(selected.status)">
+          {{ STATUS_LABELS[selected.status] ?? selected.status }}
+        </text>
+      </view>
+      <text class="ticket-no">{{ selected.ticketNo }}</text>
+      <text class="pm-section detail-title">{{ selected.title }}</text>
+      <text class="pm-sub detail-meta">
+        {{ categoryLabel(selected.category) }}
+        <template v-if="selected.orderNo"> · 订单 {{ selected.orderNo }}</template>
+      </text>
+      <text class="content">{{ selected.content }}</text>
+
+      <text class="pm-section block-title">处理进度</text>
+      <view class="timeline">
+        <view
+          v-for="(step, index) in STATUS_FLOW"
+          :key="step.value"
+          class="timeline-row"
+          :class="{ current: index === currentStep, done: index <= currentStep }"
         >
-          <view class="field-input">{{ CATEGORY_OPTIONS[categoryIndex]?.label }}</view>
-        </picker>
-        <text class="field-label">标题</text>
-        <input v-model="form.title" class="field-input" maxlength="128" placeholder="一句话说明问题" />
-        <text class="field-label">订单号（可选）</text>
-        <input
-          v-model="form.orderNo"
-          class="field-input"
-          maxlength="40"
-          placeholder="如 PM202611270001"
-        />
-        <text class="field-label">问题描述</text>
-        <textarea
-          v-model="form.content"
-          class="field-textarea"
-          maxlength="5000"
-          placeholder="请补充发生时间、操作步骤和期望结果"
-        />
-        <text v-if="formError" class="error">{{ formError }}</text>
-        <view class="form-actions">
-          <button class="secondary-button" @click="cancelCreate">取消</button>
-          <button class="primary-button" :loading="submitting" @click="submit">提交工单</button>
+          <view class="dot"></view>
+          <view class="timeline-body">
+            <text class="timeline-label">{{ step.label }}</text>
+            <text v-if="stepTime(step.value)" class="pm-sub">{{ stepTime(step.value) }}</text>
+          </view>
         </view>
       </view>
 
-      <view v-if="selected" class="detail-card">
-        <view class="detail-head">
-          <button class="link-button" @click="selected = null">← 返回列表</button>
-          <text class="tag" :class="statusClass(selected.status)">
-            {{ STATUS_LABELS[selected.status] ?? selected.status }}
-          </text>
+      <text class="pm-section block-title">客服回复</text>
+      <text v-if="!selected.replies?.length" class="pm-empty reply-empty">
+        暂无回复，客服受理后会在这里展示。
+      </text>
+      <view v-else class="replies">
+        <view v-for="reply in selected.replies" :key="reply.createdAt + reply.content" class="reply">
+          <text class="pm-sub">{{ reply.senderName || '客服' }} · {{ formatTime(reply.createdAt) }}</text>
+          <text class="pm-body reply-content">{{ reply.content }}</text>
         </view>
-        <text class="ticket-no">{{ selected.ticketNo }}</text>
-        <text class="detail-title">{{ selected.title }}</text>
-        <text class="meta">
-          {{ categoryLabel(selected.category) }}
-          <template v-if="selected.orderNo"> · 订单 {{ selected.orderNo }}</template>
-        </text>
-        <text class="content">{{ selected.content }}</text>
-
-        <text class="section-title">处理进度</text>
-        <view class="timeline">
-          <view
-            v-for="(step, index) in STATUS_FLOW"
-            :key="step.value"
-            class="timeline-row"
-            :class="{ current: index === currentStep, done: index <= currentStep }"
-          >
-            <view class="dot"></view>
-            <view class="timeline-body">
-              <text class="timeline-label">{{ step.label }}</text>
-              <text v-if="stepTime(step.value)" class="timeline-time">{{ stepTime(step.value) }}</text>
-            </view>
-          </view>
-        </view>
-
-        <text class="section-title">客服回复</text>
-        <text v-if="!selected.replies?.length" class="state">暂无回复，客服受理后会在这里展示。</text>
-        <view v-else class="replies">
-          <view v-for="reply in selected.replies" :key="reply.createdAt + reply.content" class="reply">
-            <text class="reply-head">{{ reply.senderName || '客服' }} · {{ formatTime(reply.createdAt) }}</text>
-            <text class="reply-content">{{ reply.content }}</text>
-          </view>
-        </view>
-        <button class="secondary-button" @click="refreshDetail">刷新进度</button>
       </view>
+      <button class="pm-btn pm-btn--secondary refresh" @click="refreshDetail">刷新进度</button>
+    </view>
 
-      <text v-if="detailLoading" class="state">正在加载详情…</text>
+    <text v-if="detailLoading" class="pm-sub detail-loading">正在加载详情…</text>
 
-      <template v-if="!showForm && !selected">
-        <text v-if="!loading && !error && tickets.length === 0" class="state">
-          还没有工单，遇到问题可以新建一条。
-        </text>
-        <view v-else class="ticket-list">
-          <view
-            v-for="ticket in tickets"
-            :key="ticket.id"
-            class="ticket-item"
-            @click="openDetail(ticket)"
-          >
-            <view class="ticket-item-head">
-              <text class="ticket-title">{{ ticket.title }}</text>
-              <text class="tag" :class="statusClass(ticket.status)">
-                {{ STATUS_LABELS[ticket.status] ?? ticket.status }}
-              </text>
-            </view>
-            <text class="meta">{{ categoryLabel(ticket.category) }} · {{ formatTime(ticket.createdAt) }}</text>
-            <text class="ticket-foot">
-              {{ ticket.ticketNo }}
-              <template v-if="ticket.replyCount"> · {{ ticket.replyCount }} 条回复</template>
+    <template v-if="!showForm && !selected && !loading && !error">
+      <text v-if="tickets.length === 0" class="pm-empty">
+        还没有工单，遇到问题可以新建一条。
+      </text>
+      <view v-else class="ticket-list">
+        <view
+          v-for="ticket in tickets"
+          :key="ticket.id"
+          class="pm-card ticket-item pm-tap"
+          @click="openDetail(ticket)"
+        >
+          <view class="ticket-head">
+            <text class="pm-card-title ticket-title">{{ ticket.title }}</text>
+            <text class="pm-pill" :class="statusPill(ticket.status)">
+              {{ STATUS_LABELS[ticket.status] ?? ticket.status }}
             </text>
           </view>
+          <text class="pm-sub ticket-meta">
+            {{ categoryLabel(ticket.category) }} · {{ formatTime(ticket.createdAt) }}
+          </text>
+          <text class="ticket-foot">
+            {{ ticket.ticketNo }}
+            <template v-if="ticket.replyCount"> · {{ ticket.replyCount }} 条回复</template>
+          </text>
         </view>
-      </template>
-    </view>
+      </view>
+    </template>
   </view>
 </template>
 
 <style scoped>
-.screen {
-  min-height: 100vh;
-  padding: 32rpx;
+.nav {
   display: flex;
-  align-items: flex-start;
+  height: 48px;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.back {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
   justify-content: center;
-  background: #f4f2ed;
-}
-
-.card {
-  width: 100%;
-  max-width: 680rpx;
-  padding: 48rpx 36rpx 40rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 32rpx;
-  background: #fffdf9;
-}
-
-.eyebrow {
-  display: block;
-  color: #2f6b5f;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.title {
-  display: block;
-  margin-top: 12rpx;
-  color: #1f2421;
-  font-size: 52rpx;
-  font-weight: 600;
-  line-height: 1.25;
+  margin-left: calc(var(--space-3) * -1);
+  color: var(--text);
 }
 
 .lede {
-  display: block;
-  margin-top: 12rpx;
-  color: #5c645f;
-  font-size: 26rpx;
+  margin-top: var(--space-2);
 }
 
-.primary-button,
-.secondary-button {
-  height: 88rpx;
-  margin-top: 32rpx;
-  border-radius: 16rpx;
-  font-size: 30rpx;
-  line-height: 88rpx;
+.new {
+  margin-top: var(--space-6);
 }
 
-.primary-button {
-  background: #2f6b5f;
-  color: #ffffff;
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
 }
 
-.secondary-button {
-  border: 1rpx solid #ddd9d1;
-  background: transparent;
-  color: #1f2421;
+.skeleton-row {
+  height: 112px;
 }
 
-.state,
-.error,
-.meta {
-  display: block;
-  margin-top: 20rpx;
-  color: #5c645f;
-  font-size: 26rpx;
+.state-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
 }
 
-.error {
-  color: #a83b32;
-}
-
-.form-card,
-.detail-card {
-  margin-top: 32rpx;
-  padding: 28rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 20rpx;
-}
-
-.section-title {
-  display: block;
-  margin: 28rpx 0 12rpx;
-  color: #1f2421;
-  font-size: 30rpx;
-  font-weight: 600;
-}
-
-.form-card .section-title {
-  margin-top: 0;
+.form-card {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-6);
 }
 
 .field-label {
-  display: block;
-  margin-top: 20rpx;
-  color: #5c645f;
-  font-size: 24rpx;
+  margin-top: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--font-sub);
 }
 
-.field-input,
-.field-textarea {
-  width: 100%;
-  margin-top: 10rpx;
-  padding: 18rpx 20rpx;
-  box-sizing: border-box;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 12rpx;
-  background: #fffdf9;
-  color: #1f2421;
-  font-size: 28rpx;
+.field {
+  margin-top: var(--space-2);
 }
 
-.field-textarea {
-  height: 220rpx;
+.picker {
+  display: flex;
+  align-items: center;
+}
+
+.form-error {
+  margin-top: var(--space-3);
 }
 
 .form-actions {
   display: flex;
-  gap: 16rpx;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }
 
-.form-actions button {
+.form-actions .pm-btn {
   flex: 1;
 }
 
-.detail-head,
-.ticket-item-head {
+.detail-card {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-6);
+}
+
+.detail-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16rpx;
+  gap: var(--space-3);
 }
 
-.link-button {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #2f6b5f;
-  font-size: 24rpx;
-  line-height: 1.4;
-}
-
-.tag {
-  flex: none;
-  padding: 4rpx 18rpx;
-  border-radius: 999rpx;
-  background: #f1eee8;
-  color: #5c645f;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.status-open {
-  background: #f4e5e3;
-  color: #a83b32;
-}
-
-.status-processing {
-  background: #e7efec;
-  color: #2f6b5f;
-}
-
-.status-resolved {
-  background: #e4f1e7;
-  color: #2d6b3d;
+.back-list {
+  min-height: 44px;
+  color: var(--accent);
+  font-size: var(--font-sub);
 }
 
 .ticket-no {
-  display: block;
-  margin-top: 20rpx;
-  color: #5c645f;
+  margin-top: var(--space-2);
+  color: var(--text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 22rpx;
+  font-size: var(--font-sub);
 }
 
 .detail-title {
-  display: block;
-  margin-top: 8rpx;
-  color: #1f2421;
-  font-size: 36rpx;
-  font-weight: 600;
+  margin-top: var(--space-2);
+}
+
+.detail-meta {
+  margin-top: var(--space-1);
 }
 
 .content {
-  display: block;
-  margin-top: 20rpx;
-  padding: 20rpx;
-  border-radius: 12rpx;
-  background: #f7f5f0;
-  color: #1f2421;
-  font-size: 28rpx;
-  line-height: 1.6;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--text);
+  font-size: var(--font-body);
+  line-height: 1.7;
   white-space: pre-wrap;
+}
+
+.block-title {
+  margin-top: var(--space-6);
 }
 
 .timeline {
   display: flex;
   flex-direction: column;
+  margin-top: var(--space-3);
 }
 
 .timeline-row {
   position: relative;
   display: flex;
-  gap: 16rpx;
-  padding-bottom: 24rpx;
-  color: #9a9f9c;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+  color: var(--text-disabled);
 }
 
 .timeline-row:last-child {
@@ -513,11 +477,11 @@ onShow(load);
 
 .timeline-row::before {
   position: absolute;
-  top: 20rpx;
+  top: 14px;
   bottom: 0;
-  left: 7rpx;
-  width: 1rpx;
-  background: #ddd9d1;
+  left: 5px;
+  width: 1px;
+  background: var(--line);
   content: '';
 }
 
@@ -527,95 +491,95 @@ onShow(load);
 
 .dot {
   flex: none;
-  width: 16rpx;
-  height: 16rpx;
-  margin-top: 10rpx;
-  border: 3rpx solid #ddd9d1;
-  border-radius: 50%;
-  background: #fffdf9;
+  width: 11px;
+  height: 11px;
+  margin-top: 5px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+
+.timeline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .timeline-row.done {
-  color: #1f2421;
+  color: var(--text);
 }
 
 .timeline-row.done .dot {
-  border-color: #2f6b5f;
-  background: #2f6b5f;
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .timeline-row.current .timeline-label {
-  color: #2f6b5f;
+  color: var(--accent);
 }
 
-.timeline-label,
-.timeline-time {
-  display: block;
-  font-size: 26rpx;
+.timeline-label {
+  font-size: var(--font-body);
+  line-height: 1.4;
 }
 
-.timeline-time {
-  margin-top: 2rpx;
-  color: #5c645f;
-  font-size: 22rpx;
+.reply-empty {
+  padding: var(--space-6) 0;
 }
 
 .replies {
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
+  margin-top: var(--space-3);
 }
 
 .reply {
-  padding: 18rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 12rpx;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
 }
 
-.reply-head,
 .reply-content {
   display: block;
-  font-size: 26rpx;
+  margin-top: var(--space-1);
 }
 
-.reply-head {
-  margin-bottom: 6rpx;
-  color: #5c645f;
-  font-size: 22rpx;
+.refresh {
+  margin-top: var(--space-4);
 }
 
-.reply-content {
-  color: #1f2421;
+.detail-loading {
+  margin-top: var(--space-3);
 }
 
 .ticket-list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
-  margin-top: 28rpx;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }
 
-.ticket-item {
-  padding: 24rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 16rpx;
+.ticket-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .ticket-title {
   flex: 1;
   overflow: hidden;
-  color: #1f2421;
-  font-size: 30rpx;
-  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.ticket-meta {
+  margin-top: var(--space-1);
+}
+
 .ticket-foot {
   display: block;
-  margin-top: 12rpx;
-  color: #5c645f;
+  margin-top: var(--space-2);
+  color: var(--text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 22rpx;
+  font-size: var(--font-sub);
 }
 </style>

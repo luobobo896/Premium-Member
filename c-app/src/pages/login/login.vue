@@ -39,118 +39,111 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <view class="screen">
-    <view class="card">
-      <text class="eyebrow">Premium Member</text>
-      <text class="title">登录会员账号</text>
-      <text class="lede">使用手机号和密码查看会员权益</text>
+  <view class="pm-page pm-page--plain login">
+    <view class="glow"></view>
 
-      <view class="form">
-        <text class="label">手机号</text>
-        <input
-          v-model="phone"
-          class="field"
-          type="number"
-          maxlength="11"
-          placeholder="请输入 11 位手机号"
-        />
-        <text class="label">密码</text>
-        <input
-          v-model="password"
-          class="field"
-          password
-          placeholder="请输入密码"
-          @confirm="submit"
-        />
+    <text class="brand">Premium Member</text>
+    <text class="pm-title title">登录会员账号</text>
+    <text class="lede">使用手机号和密码查看会员权益</text>
 
-        <text v-if="error" class="error">{{ error }}</text>
+    <view class="form">
+      <text class="label">手机号</text>
+      <input
+        v-model="phone"
+        class="pm-input phone"
+        type="number"
+        maxlength="11"
+        placeholder="请输入 11 位手机号"
+        placeholder-class="pm-placeholder"
+      />
 
-        <button class="primary-button" :loading="loading" @click="submit">
-          {{ loading ? '登录中' : '登录' }}
-        </button>
-      </view>
+      <text class="label label-gap">密码</text>
+      <input
+        v-model="password"
+        class="pm-input password"
+        password
+        placeholder="请输入密码"
+        placeholder-class="pm-placeholder"
+        @confirm="submit"
+      />
+
+      <text v-if="error" class="pm-notice error">{{ error }}</text>
+
+      <button class="pm-btn pm-btn--primary submit" :loading="loading" @click="submit">
+        {{ loading ? '登录中' : '登录' }}
+      </button>
     </view>
   </view>
 </template>
 
 <style scoped>
-.screen {
-  min-height: 100vh;
-  padding: 48rpx 32rpx;
+.login {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f4f2ed;
+  min-height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: calc(env(safe-area-inset-top) + 72px);
 }
 
-.card {
-  width: 100%;
-  max-width: 680rpx;
-  padding: 56rpx 40rpx 40rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 32rpx;
-  background: #fffdf9;
+.glow {
+  position: absolute;
+  top: -150px;
+  right: -110px;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(61, 220, 151, 0.22), transparent 66%);
+  pointer-events: none;
 }
 
-.eyebrow {
-  display: block;
-  color: #2f6b5f;
-  font-size: 24rpx;
-  font-weight: 600;
+.brand {
+  position: relative;
+  color: var(--text-muted);
+  font-size: var(--font-sub);
+  letter-spacing: 0.6px;
 }
 
 .title {
-  display: block;
-  margin-top: 16rpx;
-  color: #1f2421;
-  font-size: 56rpx;
-  font-weight: 600;
-  line-height: 1.25;
+  position: relative;
+  margin-top: var(--space-3);
 }
 
 .lede {
+  position: relative;
   display: block;
-  margin-top: 12rpx;
-  color: #5c645f;
-  font-size: 28rpx;
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--font-body);
+  line-height: 1.6;
 }
 
 .form {
-  margin-top: 48rpx;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-8);
 }
 
 .label {
-  display: block;
-  margin-top: 24rpx;
-  color: #1f2421;
-  font-size: 30rpx;
-  font-weight: 500;
+  color: var(--text-muted);
+  font-size: var(--font-sub);
 }
 
-.field {
-  height: 88rpx;
-  margin-top: 12rpx;
-  padding: 0 24rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 16rpx;
-  color: #1f2421;
-  font-size: 32rpx;
+.label-gap {
+  margin-top: var(--space-4);
+}
+
+.phone,
+.password {
+  margin-top: var(--space-2);
 }
 
 .error {
-  display: block;
-  margin-top: 24rpx;
-  color: #a83b32;
-  font-size: 28rpx;
+  margin-top: var(--space-4);
 }
 
-.primary-button {
-  height: 88rpx;
-  margin-top: 40rpx;
-  border-radius: 16rpx;
-  background: #2f6b5f;
-  color: #ffffff;
-  font-size: 32rpx;
-  line-height: 88rpx;
+.submit {
+  margin-top: var(--space-6);
 }
 </style>

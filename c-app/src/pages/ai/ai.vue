@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onShow, onUnload } from '@dcloudio/uni-app';
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 
 import {
   ApiError,
@@ -19,18 +19,30 @@ import {
   type AiTemplate,
   type AiType,
 } from '../../api';
+import AppIcon from '../../components/AppIcon.vue';
+import AppTabbar from '../../components/AppTabbar.vue';
+import GradientCover from '../../components/GradientCover.vue';
 
-const typeTabs: Array<{ label: string; value: AiType }> = [
-  { label: '照片', value: 'PHOTO' },
-  { label: '换装', value: 'DRESSUP' },
-  { label: '视频', value: 'VIDEO' },
-];
+const TYPE_TITLES: Record<AiType, string> = {
+  PHOTO: 'AI 写真',
+  DRESSUP: '一键换装',
+  VIDEO: '图生视频',
+};
 const terminal = new Set(['SUCCESS', 'FAILED', 'REJECTED', 'UNKNOWN']);
+const TASK_STATUS: Record<string, string> = {
+  QUEUED: '排队中',
+  RUNNING: '生成中',
+  SUCCESS: '已完成',
+  FAILED: '失败',
+  REJECTED: '已拒绝',
+  UNKNOWN: '未知',
+};
 
+const loggedIn = ref(false);
+const activeType = ref<AiType>('PHOTO');
 const quota = ref<AiQuota | null>(null);
 const templates = ref<AiTemplate[]>([]);
 const tasks = ref<AiTask[]>([]);
-const activeType = ref<AiType>('PHOTO');
 const selected = ref<AiTemplate | null>(null);
 const inputPreview = ref('');
 const currentTask = ref<AiTask | null>(null);
@@ -38,30 +50,90 @@ const loading = ref(true);
 const uploading = ref(false);
 const submitting = ref(false);
 const error = ref('');
+const showWorks = ref(false);
 const uploadedAssetId = ref(0);
+const presetTemplateId = ref(0);
 let pollTimer: number | undefined;
 
+const typeTitle = computed(() => TYPE_TITLES[activeType.value]);
 const visibleTemplates = computed(() =>
   templates.value.filter((item) => item.type === activeType.value),
 );
 const works = computed(() => tasks.value.filter((item) => item.outputUrl));
+const taskParams = computed<Record<string, unknown>>(() => {
+  if (!selected.value?.params) return {};
+  try {
+    return JSON.parse(selected.value.params) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+});
+const videoDuration = computed(() => {
+  const value = Number(taskParams.value.duration);
+  return Number.isFinite(value) && value > 0 ? value : 5;
+});
+const aspectRatio = computed(() =>
+  typeof taskParams.value.aspectRatio === 'string' ? taskParams.value.aspectRatio : '3:4',
+);
+const consumeText = computed(() => {
+  const kind = activeType.value === 'VIDEO' ? '视频' : '图片';
+  if (!quota.value?.period) return `本次消耗 1 次${kind}额度`;
+  const remaining =
+    activeType.value === 'VIDEO' ? quota.value.video.remaining : quota.value.image.remaining;
+  return `本次消耗 1 次${kind}额度 · 剩余 ${remaining} 次`;
+});
+const ctaText = computed(() => {
+  if (!loggedIn.value) return '登录后生成';
+  return submitting.value ? '提交中' : '开始生成';
+});
+const ctaDisabled = computed(
+  () => submitting.value,
+);
+
+function coverLabel(template: AiTemplate): string {
+  return template.category.length <= 4 ? template.category : template.name.slice(0, 2);
+}
+
+function coverTone(type: AiType): string {
+  if (type === 'DRESSUP') return 'dress';
+  if (type === 'VIDEO') return 'video';
+  return 'photo';
+}
+
+function statusLabel(status: string): string {
+  return TASK_STATUS[status] ?? status;
+}
+
+function statusClass(status: string): string {
+  if (status === 'SUCCESS') return 'pm-pill--accent';
+  if (status === 'FAILED' || status === 'REJECTED') return 'pm-pill--danger';
+  return 'pm-pill--warning';
+}
+
+function goLogin(): void {
+  uni.navigateTo({ url: '/pages/login/login' });
+}
 
 function handleError(ex: unknown) {
   if (ex instanceof ApiError && ex.statusCode === 401) {
     clearToken();
-    uni.reLaunch({ url: '/pages/login/login' });
+    loggedIn.value = false;
     return;
   }
   error.value = ex instanceof Error ? ex.message : '操作失败';
 }
 
 async function load() {
-  if (!getToken()) {
-    uni.reLaunch({ url: '/pages/login/login' });
-    return;
-  }
+  loggedIn.value = Boolean(getToken());
   loading.value = true;
   error.value = '';
+  if (!loggedIn.value) {
+    quota.value = null;
+    templates.value = [];
+    tasks.value = [];
+    loading.value = false;
+    return;
+  }
   try {
     const [quotaData, templateData, taskData] = await Promise.all([
       getAiQuota(),
@@ -71,6 +143,14 @@ async function load() {
     quota.value = quotaData;
     templates.value = templateData;
     tasks.value = taskData;
+    if (presetTemplateId.value) {
+      const preset = templateData.find((item) => item.id === presetTemplateId.value);
+      if (preset) {
+        activeType.value = preset.type;
+        selected.value = preset;
+      }
+      presetTemplateId.value = 0;
+    }
   } catch (ex) {
     handleError(ex);
   } finally {
@@ -82,13 +162,6 @@ async function refreshQuotaAndTasks() {
   const [quotaData, taskData] = await Promise.all([getAiQuota(), getAiTasks()]);
   quota.value = quotaData;
   tasks.value = taskData;
-}
-
-function selectType(type: AiType) {
-  activeType.value = type;
-  selected.value = null;
-  inputPreview.value = '';
-  uploadedAssetId.value = 0;
 }
 
 async function onPicked(path: string) {
@@ -107,12 +180,9 @@ async function onPicked(path: string) {
   }
 }
 
-function chooseFile() {
-  if (activeType.value === 'VIDEO') {
-    uni.chooseVideo({
-      sourceType: ['album', 'camera'],
-      success: (result) => onPicked(result.tempFilePath),
-    });
+function choosePhoto() {
+  if (!loggedIn.value) {
+    goLogin();
     return;
   }
   uni.chooseImage({
@@ -124,7 +194,19 @@ function chooseFile() {
 }
 
 async function submit() {
-  if (!selected.value || !inputPreview.value || submitting.value) return;
+  if (!loggedIn.value) {
+    goLogin();
+    return;
+  }
+  if (!selected.value) {
+    error.value = '请选择一个模板';
+    return;
+  }
+  if (!inputPreview.value) {
+    error.value = '请上传照片';
+    return;
+  }
+  if (submitting.value) return;
   submitting.value = true;
   error.value = '';
   try {
@@ -180,9 +262,27 @@ function removeWork(task: AiTask) {
   });
 }
 
-function back() {
-  uni.navigateBack({ delta: 1 });
+function toggleWorks(): void {
+  if (!loggedIn.value) {
+    goLogin();
+    return;
+  }
+  showWorks.value = !showWorks.value;
 }
+
+function back(): void {
+  uni.reLaunch({ url: '/pages/index/index' });
+}
+
+onLoad(() => {
+  const preset = uni.getStorageSync('pm_ai_type') as AiType | '';
+  if (preset === 'PHOTO' || preset === 'DRESSUP' || preset === 'VIDEO') {
+    activeType.value = preset;
+  }
+  presetTemplateId.value = Number(uni.getStorageSync('pm_ai_template_id')) || 0;
+  uni.removeStorageSync('pm_ai_type');
+  uni.removeStorageSync('pm_ai_template_id');
+});
 
 onShow(load);
 onUnload(() => {
@@ -191,326 +291,397 @@ onUnload(() => {
 </script>
 
 <template>
-  <view class="screen">
-    <view class="card">
-      <view class="header">
-        <text class="eyebrow">AI 创作</text>
-        <text class="title">把照片变成作品</text>
-        <text v-if="quota?.period" class="pill">
-          图 {{ quota.image.remaining }} · 视频 {{ quota.video.remaining }}
-        </text>
+  <view class="pm-page">
+    <view class="nav">
+      <view class="back pm-tap" aria-label="返回" @click="back">
+        <AppIcon name="arrow-left" :size="22" />
       </view>
+      <text class="nav-title">{{ typeTitle }}</text>
+      <view class="nav-space"></view>
+    </view>
 
-      <text v-if="loading" class="state">正在加载…</text>
-      <view v-else-if="!quota?.period" class="state-block">
-        <text v-if="error" class="error">{{ error }}</text>
-        <text class="state">当前没有生效中的会员周期，购买套餐后才会获得 AI 次数。</text>
-      </view>
+    <view v-if="loading" class="pm-skeleton page-skeleton"></view>
 
-      <template v-else>
-        <text v-if="error" class="error">{{ error }}</text>
-        <view class="tabs">
-          <text
-            v-for="tab in typeTabs"
-            :key="tab.value"
-            :class="{ active: activeType === tab.value }"
-            class="tab"
-            @click="selectType(tab.value)"
-          >
-            {{ tab.label }}
-          </text>
+    <template v-else>
+      <text v-if="error" class="pm-notice notice">{{ error }}</text>
+
+      <view class="upload-card pm-card">
+        <view class="upload" :class="{ 'upload--filled': inputPreview }" @click="choosePhoto">
+          <image v-if="inputPreview" :src="inputPreview" class="upload-image" mode="aspectFill" />
+          <view v-else class="upload-empty">
+            <AppIcon name="image" :size="30" />
+            <text class="upload-text">上传照片</text>
+          </view>
+          <view v-if="inputPreview" class="upload-again">
+            <text>{{ uploading ? '上传中…' : '重新选择' }}</text>
+          </view>
         </view>
+      </view>
 
-        <view class="template-grid">
+      <view class="section-head">
+        <text class="pm-section">选择模板</text>
+      </view>
+
+      <scroll-view v-if="visibleTemplates.length" class="scroll" scroll-x>
+        <view class="tpl-row">
           <view
             v-for="template in visibleTemplates"
             :key="template.id"
-            :class="{ selected: selected?.id === template.id }"
-            class="template"
+            class="tpl pm-tap"
+            :class="{ 'tpl--selected': selected?.id === template.id }"
             @click="selected = template"
           >
-            <text class="template-cover">{{ template.name.slice(0, 1) }}</text>
-            <text class="template-name">{{ template.name }}</text>
-            <text class="template-category">{{ template.category }}</text>
-          </view>
-        </view>
-
-        <view class="submit-card">
-          <text class="step">1. 上传素材（H5 模拟文件选择）</text>
-          <button class="secondary-button" :loading="uploading" @click="chooseFile">
-            {{ inputPreview ? '更换素材' : '选择图片 / 视频' }}
-          </button>
-          <image v-if="inputPreview && activeType !== 'VIDEO'" :src="inputPreview" class="preview" />
-          <text v-if="inputPreview && activeType === 'VIDEO'" class="state">已选择视频素材</text>
-
-          <text class="step">2. 确认模板</text>
-          <text class="selected-name">{{ selected?.name || '请选择一个模板' }}</text>
-          <button
-            class="primary-button"
-            :disabled="!selected || !inputPreview"
-            :loading="submitting"
-            @click="submit"
-          >
-            提交创作（消耗 1 次）
-          </button>
-        </view>
-
-        <view v-if="currentTask" class="current">
-          <view class="current-head">
-            <text class="current-title">{{ currentTask.templateName }}</text>
-            <text class="tag">{{ currentTask.status }}</text>
-          </view>
-          <text class="meta">{{ currentTask.taskNo }}</text>
-          <text v-if="currentTask.failReason" class="error">{{ currentTask.failReason }}</text>
-          <video
-            v-if="currentTask.outputUrl && currentTask.outputMime?.startsWith('video')"
-            :src="assetUrl(currentTask.outputUrl)"
-            autoplay
-            class="output"
-            controls
-            loop
-            muted
-          />
-          <image
-            v-else-if="currentTask.outputUrl"
-            :src="assetUrl(currentTask.outputUrl)"
-            class="output"
-            mode="widthFix"
-          />
-        </view>
-
-        <view class="history">
-          <text class="history-title">我的作品</text>
-          <text v-if="works.length === 0" class="state">还没有生成成功的作品。</text>
-          <view v-for="task in works" :key="task.id" class="work">
-            <image
-              v-if="!task.outputMime?.startsWith('video')"
-              :src="assetUrl(task.outputUrl)"
-              class="work-thumb"
+            <GradientCover
+              :label="coverLabel(template)"
+              :caption="template.name"
+              :tone="coverTone(template.type)"
+              :height="110"
             />
-            <text v-else class="work-thumb work-video">视频</text>
-            <text class="work-name">{{ task.templateName }}</text>
-            <text class="work-delete" @click="removeWork(task)">删除</text>
+            <view v-if="selected?.id === template.id" class="check">
+              <AppIcon name="check" :size="14" />
+            </view>
           </view>
         </view>
-      </template>
+      </scroll-view>
+      <view v-else class="pm-empty">{{ loggedIn ? '暂无模板' : '登录后查看模板' }}</view>
 
-      <button class="secondary-button" @click="back">返回会员中心</button>
-    </view>
+      <view v-if="selected" class="params">
+        <template v-if="activeType === 'VIDEO'">
+          <view class="param">
+            <text class="pm-sub">时长</text>
+            <text class="pm-pill">{{ videoDuration }} 秒</text>
+          </view>
+          <view class="param">
+            <text class="pm-sub">分辨率</text>
+            <text class="pm-pill">720P</text>
+          </view>
+        </template>
+        <template v-else>
+          <view class="param">
+            <text class="pm-sub">风格</text>
+            <text class="pm-pill">{{ selected.category }}</text>
+          </view>
+          <view class="param">
+            <text class="pm-sub">比例</text>
+            <text class="pm-pill">{{ aspectRatio }}</text>
+          </view>
+        </template>
+      </view>
+
+      <view class="consume">
+        <AppIcon name="sparkles" :size="16" />
+        <text class="consume-text">{{ consumeText }}</text>
+      </view>
+
+      <button class="pm-btn pm-btn--primary generate" :disabled="ctaDisabled" @click="submit">
+        {{ ctaText }}
+      </button>
+
+      <view class="works-link pm-tap" @click="toggleWorks">
+        <text>我的作品</text>
+        <AppIcon name="chevron-right" :size="16" />
+      </view>
+
+      <view v-if="currentTask" class="pm-card current">
+        <view class="current-head">
+          <text class="pm-card-title">{{ currentTask.templateName }}</text>
+          <text class="pm-pill" :class="statusClass(currentTask.status)">
+            {{ statusLabel(currentTask.status) }}
+          </text>
+        </view>
+        <text class="pm-sub task-no">{{ currentTask.taskNo }}</text>
+        <text v-if="currentTask.failReason" class="pm-notice fail">
+          {{ currentTask.failReason }}
+        </text>
+        <video
+          v-if="currentTask.outputUrl && currentTask.outputMime?.startsWith('video')"
+          :src="assetUrl(currentTask.outputUrl)"
+          autoplay
+          class="output"
+          controls
+          loop
+          muted
+        />
+        <image
+          v-else-if="currentTask.outputUrl"
+          :src="assetUrl(currentTask.outputUrl)"
+          class="output"
+          mode="widthFix"
+        />
+      </view>
+
+      <view v-if="showWorks" class="works">
+        <text v-if="works.length === 0" class="pm-empty">还没有生成成功的作品。</text>
+        <view v-for="task in works" :key="task.id" class="pm-card work">
+          <image
+            v-if="!task.outputMime?.startsWith('video')"
+            :src="assetUrl(task.outputUrl)"
+            class="work-thumb"
+            mode="aspectFill"
+          />
+          <view v-else class="work-thumb work-video">
+            <AppIcon name="video" :size="20" />
+          </view>
+          <text class="work-name">{{ task.templateName }}</text>
+          <button class="work-delete" @click="removeWork(task)">删除</button>
+        </view>
+      </view>
+    </template>
+
+    <AppTabbar active="ai" />
   </view>
 </template>
 
 <style scoped>
-.screen {
-  min-height: 100vh;
-  padding: 40rpx 32rpx;
-  background: #f4f2ed;
-}
-
-.card {
-  padding: 48rpx 36rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 32rpx;
-  background: #fffdf9;
-}
-
-.eyebrow {
-  display: block;
-  color: #2f6b5f;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.title {
-  display: block;
-  margin-top: 12rpx;
-  color: #1f2421;
-  font-size: 52rpx;
-  font-weight: 600;
-}
-
-.pill {
-  display: inline-block;
-  margin-top: 16rpx;
-  padding: 8rpx 24rpx;
-  border-radius: 999rpx;
-  background: #e7efec;
-  color: #2f6b5f;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.state,
-.error,
-.meta {
-  display: block;
-  margin-top: 24rpx;
-  color: #5c645f;
-  font-size: 26rpx;
-}
-
-.error {
-  color: #a83b32;
-}
-
-.tabs {
+.nav {
   display: flex;
-  gap: 12rpx;
-  margin-top: 28rpx;
+  height: 48px;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.tab {
-  padding: 10rpx 28rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 999rpx;
-  color: #5c645f;
-  font-size: 26rpx;
-}
-
-.tab.active {
-  border-color: #2f6b5f;
-  background: #e7efec;
-  color: #2f6b5f;
-  font-weight: 600;
-}
-
-.template-grid {
+.back {
   display: flex;
-  flex-wrap: wrap;
-  margin-top: 20rpx;
-}
-
-.template {
-  width: calc(33.33% - 12rpx);
-  margin: 0 12rpx 12rpx 0;
-  padding: 12rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 16rpx;
-  box-sizing: border-box;
-}
-
-.template.selected {
-  border-color: #2f6b5f;
-  background: #e7efec;
-}
-
-.template-cover {
-  display: flex;
-  height: 150rpx;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
-  border-radius: 12rpx;
-  background: linear-gradient(160deg, #dce9e4, #a9c7bc);
-  color: #2f6b5f;
-  font-size: 52rpx;
-  font-weight: 700;
+  color: var(--text);
 }
 
-.template-name {
-  display: block;
-  margin-top: 10rpx;
-  color: #1f2421;
-  font-size: 24rpx;
+.nav-title {
+  color: var(--text);
+  font-size: var(--font-hero);
   font-weight: 600;
 }
 
-.template-category {
-  display: block;
-  color: #5c645f;
-  font-size: 20rpx;
+.nav-space {
+  width: 44px;
 }
 
-.submit-card {
-  margin-top: 20rpx;
-  padding: 24rpx;
-  border: 1rpx solid #ddd9d1;
-  border-radius: 16rpx;
+.page-skeleton {
+  height: 520px;
+  margin-top: var(--space-4);
 }
 
-.step {
-  display: block;
-  margin: 20rpx 0 12rpx;
-  color: #5c645f;
-  font-size: 24rpx;
+.notice {
+  margin-top: var(--space-3);
 }
 
-.step:first-child {
-  margin-top: 0;
+.upload-card {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
 }
 
-.selected-name {
-  display: block;
-  color: #1f2421;
-  font-size: 28rpx;
-  font-weight: 600;
+.upload {
+  position: relative;
+  display: flex;
+  width: 220px;
+  height: 220px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
+  background: var(--overlay);
 }
 
-.preview,
-.output {
-  display: block;
+.upload--filled {
+  border-style: solid;
+  border-color: var(--border);
+}
+
+.upload-image {
   width: 100%;
-  margin-top: 16rpx;
-  border-radius: 12rpx;
+  height: 100%;
+}
+
+.upload-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+
+.upload-text {
+  color: var(--text);
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+
+.upload-again {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: var(--space-2);
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--text);
+  font-size: var(--font-sub);
+  text-align: center;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: var(--space-6) 0 var(--space-3);
+}
+
+.scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.tpl-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.tpl {
+  position: relative;
+  flex: none;
+  width: 104px;
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.tpl--selected {
+  border-color: var(--accent);
+}
+
+.check {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-deep);
+}
+
+.params {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.param {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.consume {
+  display: flex;
+  height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.consume-text {
+  color: var(--text);
+  font-size: var(--font-sub);
+}
+
+.generate {
+  margin-top: var(--space-4);
+}
+
+.works-link {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--font-sub);
 }
 
 .current {
-  margin-top: 24rpx;
-  padding: 24rpx;
-  border: 1rpx solid #2f6b5f;
-  border-radius: 16rpx;
-  background: #e7efec;
+  margin-top: var(--space-3);
+  border-color: var(--accent);
 }
 
 .current-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
 }
 
-.current-title {
-  font-size: 30rpx;
-  font-weight: 600;
+.task-no {
+  margin-top: var(--space-1);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-.history {
-  margin-top: 32rpx;
+.fail {
+  margin-top: var(--space-3);
 }
 
-.history-title {
+.output {
   display: block;
-  font-size: 30rpx;
-  font-weight: 600;
+  width: 100%;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-control);
+}
+
+.works {
+  margin-top: var(--space-3);
 }
 
 .work {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #ddd9d1;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 .work-thumb {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 12rpx;
-  background: #e7efec;
+  flex: none;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--overlay);
 }
 
 .work-video {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #2f6b5f;
-  font-size: 22rpx;
+  color: var(--text-muted);
 }
 
 .work-name {
   flex: 1;
-  font-size: 26rpx;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .work-delete {
-  color: #a83b32;
-  font-size: 24rpx;
+  display: flex;
+  min-width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+  font-size: var(--font-sub);
 }
 </style>

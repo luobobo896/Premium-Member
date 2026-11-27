@@ -39,3 +39,7 @@ deploy/backups/
 coverage/
 playwright-report/
 test-results/
+
+# UI reference screenshots (local only)
+即梦/
+可灵/
