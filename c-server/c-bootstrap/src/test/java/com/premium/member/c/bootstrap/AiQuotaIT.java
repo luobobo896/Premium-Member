@@ -33,17 +33,16 @@ class AiQuotaIT extends CIntegrationIT {
         HttpResult first = post("/c/ai/tasks", request, account.token());
         assertThat(first.status()).isEqualTo(200);
         String taskNo = first.data().path("taskNo").asText();
-        assertThat(balance(account.memberId())).isEqualTo(5900);
 
         HttpResult duplicate = post("/c/ai/tasks", request, account.token());
         assertThat(duplicate.status()).isEqualTo(200);
         assertThat(duplicate.data().path("taskNo").asText()).isEqualTo(taskNo);
-        assertThat(balance(account.memberId())).isEqualTo(5900);
 
         awaitStatus(taskNo, account.token(), "FAILED");
         assertThat(balance(account.memberId())).isEqualTo(6000);
         assertThat(ledgerCount(taskNo, "CONSUME")).isEqualTo(1);
         assertThat(ledgerCount(taskNo, "REFUND")).isEqualTo(1);
+        assertLedgerBalance(account.memberId());
 
         String successKey = "it-success-key-" + System.nanoTime();
         HttpResult success = post("/c/ai/tasks", Map.of("templateId", templateId,
@@ -54,6 +53,7 @@ class AiQuotaIT extends CIntegrationIT {
         assertThat(balance(account.memberId())).isEqualTo(5900);
         assertThat(ledgerCount(successTaskNo, "CONSUME")).isEqualTo(1);
         assertThat(ledgerCount(successTaskNo, "REFUND")).isZero();
+        assertLedgerBalance(account.memberId());
 
         HttpResult ledger = get("/c/points/ledger", account.token());
         assertThat(ledger.status()).isEqualTo(200);
@@ -78,6 +78,7 @@ class AiQuotaIT extends CIntegrationIT {
         jdbc.update("UPDATE plan_version SET monthly_points = 0 WHERE id = ?", planId);
         createActivePeriod(account.memberId(), planId);
         subscriptionService.activate(account.memberId(), planId);
+        assertThat(balance(account.memberId())).isZero();
         long assetId = createInputAsset(account.memberId());
         String key = "it-zero-key-" + System.nanoTime();
 
@@ -88,6 +89,8 @@ class AiQuotaIT extends CIntegrationIT {
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM ai_task WHERE idempotency_key = ?", Long.class, key))
                 .isZero();
+        assertThat(ledgerCountForMember(account.memberId(), "CONSUME")).isZero();
+        assertLedgerBalance(account.memberId());
     }
 
     private int balance(long memberId) {
@@ -101,6 +104,27 @@ class AiQuotaIT extends CIntegrationIT {
                 SELECT count(*) FROM point_ledger
                 WHERE ref_type = 'AI_TASK' AND ref_id = ? AND type = ?
                 """, Long.class, taskNo, type);
+    }
+
+    private long ledgerCountForMember(long memberId, String type) {
+        return jdbc.queryForObject("""
+                SELECT count(*) FROM point_ledger WHERE member_id = ? AND type = ?
+                """, Long.class, memberId, type);
+    }
+
+    private void assertLedgerBalance(long memberId) {
+        var rows = jdbc.queryForList("""
+                SELECT delta, balance_after FROM point_ledger
+                WHERE member_id = ? ORDER BY id
+                """, memberId);
+        int running = 0;
+        for (var row : rows) {
+            running += ((Number) row.get("delta")).intValue();
+            assertThat(((Number) row.get("balance_after")).intValue())
+                    .as("ledger balance_after")
+                    .isEqualTo(running);
+        }
+        assertThat(running).as("final point account balance").isEqualTo(balance(memberId));
     }
 
     private void awaitStatus(String taskNo, String token, String expected) throws Exception {
