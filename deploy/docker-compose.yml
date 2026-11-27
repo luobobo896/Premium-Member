@@ -1,0 +1,43 @@
+name: premium-member
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: premium-member-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-premium_member}
+      POSTGRES_USER: ${DB_USER:-premium_member}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-premium_member_dev_only}
+      TZ: Asia/Shanghai
+    ports:
+      - "15432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../admin-server/src/main/resources/db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.2-alpine
+    container_name: premium-member-redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-premium_member_dev_only}", "--appendonly", "yes"]
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "16379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD:-premium_member_dev_only} ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
