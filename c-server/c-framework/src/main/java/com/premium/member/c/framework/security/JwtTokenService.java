@@ -3,7 +3,6 @@ package com.premium.member.c.framework.security;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 
 import javax.crypto.SecretKey;
@@ -31,12 +30,11 @@ public class JwtTokenService {
     /**
      * 生成 access token。
      *
-     * @param userId   用户 ID
-     * @param username 用户名
-     * @param roles    角色码
+     * @param userId 用户 ID
+     * @param phone  手机号
      * @return JWT 字符串
      */
-    public String createAccessToken(long userId, String username, List<String> roles) {
+    public String createAccessToken(long userId, String phone) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .issuer(properties.getIssuer())
@@ -46,8 +44,7 @@ public class JwtTokenService {
                 .expiration(Date.from(now.plus(properties.getAccessTtl())))
                 .claim("type", "access")
                 .claim("uid", userId)
-                .claim("username", username)
-                .claim("roles", roles)
+                .claim("phone", phone)
                 .signWith(accessKey())
                 .compact();
     }
@@ -55,11 +52,11 @@ public class JwtTokenService {
     /**
      * 生成 refresh token。
      *
-     * @param userId   用户 ID
-     * @param username 用户名
+     * @param userId 用户 ID
+     * @param phone  手机号
      * @return JWT 字符串
      */
-    public String createRefreshToken(long userId, String username) {
+    public String createRefreshToken(long userId, String phone) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .issuer(properties.getIssuer())
@@ -69,7 +66,7 @@ public class JwtTokenService {
                 .expiration(Date.from(now.plus(properties.getRefreshTtl())))
                 .claim("type", "refresh")
                 .claim("uid", userId)
-                .claim("username", username)
+                .claim("phone", phone)
                 .signWith(refreshKey())
                 .compact();
     }

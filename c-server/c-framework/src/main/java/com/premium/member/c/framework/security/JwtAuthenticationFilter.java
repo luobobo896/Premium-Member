@@ -1,7 +1,6 @@
 package com.premium.member.c.framework.security;
 
 import java.io.IOException;
-import java.util.List;
 
 import com.premium.member.c.common.exception.BusinessException;
 import io.jsonwebtoken.Claims;
@@ -10,7 +9,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -34,13 +32,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             try {
                 Claims claims = tokenService.parseAccessToken(header.substring(7));
-                String username = claims.get("username", String.class);
-                @SuppressWarnings("unchecked")
-                List<String> roles = claims.get("roles", List.class);
-                List<SimpleGrantedAuthority> authorities = roles == null ? List.of()
-                        : roles.stream().map(role -> new SimpleGrantedAuthority("ROLE_" + role)).toList();
+                long userId = ((Number) claims.get("uid")).longValue();
+                String phone = claims.get("phone", String.class);
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(username, null, authorities);
+                        new UsernamePasswordAuthenticationToken(new CUserPrincipal(userId, phone), null, null);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (BusinessException ex) {
                 SecurityContextHolder.clearContext();

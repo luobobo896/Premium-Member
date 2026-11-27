@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:30}
+      minimum-idle: ${DB_POOL_MIN:5}
+      connection-timeout: 3000
+  sql:
+    init:
+      mode: ${SQL_INIT_MODE:never}
+
+app:
+  cookie:
+    secure: true
+
+logging:
+  level:
+    root: info
+    com.premium.member: info
