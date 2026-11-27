@@ -11,22 +11,19 @@ import java.util.UUID;
 
 import com.premium.member.c.common.exception.BusinessException;
 import com.premium.member.c.common.exception.ErrorCode;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Service;
 
 /**
  * dev 本地目录存储。
  */
-@Service
 public class LocalStorageService implements StorageService {
 
     private static final DateTimeFormatter DATE_PATH = DateTimeFormatter.ofPattern("yyyy/MM");
 
     private final Path root;
 
-    public LocalStorageService(@Value("${app.ai.storage-dir:./data/ai}") String storageDir) {
+    public LocalStorageService(String storageDir) {
         this.root = Path.of(storageDir).toAbsolutePath().normalize();
         try {
             Files.createDirectories(root);

@@ -1,5 +1,6 @@
 package com.premium.member.c.biz.ai.service;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -23,6 +24,7 @@ import com.premium.member.c.biz.member.entity.PmMember;
 import com.premium.member.c.biz.member.mapper.PmMemberMapper;
 import com.premium.member.c.common.exception.BusinessException;
 import com.premium.member.c.common.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -41,13 +43,16 @@ public class AiTaskService {
     private final PmMemberMapper memberMapper;
     private final AiQuotaService quotaService;
     private final StorageService storageService;
+    private final Duration signedUrlTtl;
 
     public AiTaskService(AiMapper aiMapper, PmMemberMapper memberMapper,
-            AiQuotaService quotaService, StorageService storageService) {
+            AiQuotaService quotaService, StorageService storageService,
+            @Value("${app.ai.signed-url-ttl-seconds:1800}") long signedUrlTtlSeconds) {
         this.aiMapper = aiMapper;
         this.memberMapper = memberMapper;
         this.quotaService = quotaService;
         this.storageService = storageService;
+        this.signedUrlTtl = Duration.ofSeconds(signedUrlTtlSeconds);
     }
 
     public List<AiTemplateResponse> templates(String type, String category) {
@@ -177,7 +182,11 @@ public class AiTaskService {
     }
 
     private String url(String storageKey) {
-        return StringUtils.hasText(storageKey) ? "/c/ai/files/" + storageKey : null;
+        if (!StringUtils.hasText(storageKey)) {
+            return null;
+        }
+        String signed = storageService.signedUrl(storageKey, signedUrlTtl);
+        return StringUtils.hasText(signed) ? signed : "/c/ai/files/" + storageKey;
     }
 
     private String normalizeMockResult(String value) {

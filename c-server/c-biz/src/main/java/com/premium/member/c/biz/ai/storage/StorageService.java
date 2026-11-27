@@ -1,5 +1,7 @@
 package com.premium.member.c.biz.ai.storage;
 
+import java.time.Duration;
+
 import org.springframework.core.io.Resource;
 
 /**
@@ -9,9 +11,24 @@ public interface StorageService {
 
     StoredFile store(byte[] content, String extension);
 
+    default StoredFile store(byte[] content, String extension, String category) {
+        return store(content, extension);
+    }
+
     Resource load(String storageKey);
 
     void delete(String storageKey);
+
+    /**
+     * 远端存储返回短期签名 URL，本地存储返回 null 由业务走本地回退路径。
+     */
+    default String signedUrl(String storageKey, Duration ttl) {
+        return null;
+    }
+
+    default boolean remote() {
+        return false;
+    }
 
     /**
      * 存储结果。

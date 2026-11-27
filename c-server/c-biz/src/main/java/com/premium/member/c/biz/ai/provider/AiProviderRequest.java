@@ -9,6 +9,7 @@ package com.premium.member.c.biz.ai.provider;
  * @param templateName 模板名称
  * @param inputMime    输入文件类型
  * @param inputBytes   输入文件内容
+ * @param inputUrl     供应商可访问的输入文件 URL
  */
 public record AiProviderRequest(
         String taskNo,
@@ -16,5 +17,6 @@ public record AiProviderRequest(
         String templateCode,
         String templateName,
         String inputMime,
-        byte[] inputBytes) {
+        byte[] inputBytes,
+        String inputUrl) {
 }

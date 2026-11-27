@@ -47,6 +47,22 @@ openssl rand -base64 48  # BENEFIT_CARD_SECRET
 
 四个 JWT 密钥必须互不相同，C 端与管理端不能复用。其余键见 `deploy/.env.prod.example`。
 
+AI 与 OSS（不配置 OSS 时回退本地 `ai-data` 卷，但生产图生视频需要供应商可访问的输入图）：
+
+```bash
+AI_PROVIDER=dashscope
+DASHSCOPE_API_KEY=...
+DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com
+OSS_ENDPOINT=https://oss-cn-shenzhen.aliyuncs.com
+OSS_BUCKET=demopt
+OSS_ACCESS_KEY_ID=...
+OSS_ACCESS_KEY_SECRET=...
+OSS_PREFIX=premium-member/ai/prod
+```
+
+OSS 对象 key 为随机 UUID，C 端只拿 30 分钟签名 URL。生产优先使用 OSS；本地无 OSS 时保留
+`/c/assets/{token}` 临时输入兜底，需配置 `PUBLIC_ASSET_BASE_URL`。
+
 生产证书放到 `deploy/certs/fullchain.pem` 与 `deploy/certs/privkey.pem`。若文件不存在，
 `up.sh` 会生成仅用于本地验证的自签证书：
 
@@ -136,6 +152,9 @@ cd deploy
 | 登录后接口 401 | 确认访问的是 nginx 入口而不是容器端口；C 端 Cookie Path 必须是 `/c-api/c/auth` |
 | 首次启动没有表 | `pgdata` 卷已存在时 initdb 不会重跑；确认是否需要备份后重建卷 |
 | 备份失败 | 确认 PostgreSQL healthy，`.env` 中 `DB_USER`/`DB_NAME` 与库一致 |
+| 图生视频失败 `AI_PROVIDER_INPUT_UNREACHABLE` | OSS 未配置时检查 `PUBLIC_ASSET_BASE_URL`；OSS 模式检查签名 URL 是否可被公网访问 |
+| DashScope 失败 `AI_PROVIDER_NOT_ENABLED` | 百炼控制台未开通原因中的模型名 |
+| OSS 上传失败 HTTP 403 | 检查 AK/SK、bucket 区域与 endpoint 是否匹配 |
 
 ## 8. 安全清单
 
@@ -145,6 +164,9 @@ cd deploy
 - `application-prod.yml` 不含默认数据库密码、Redis 密码、JWT 密钥或卡密密钥。
 - CORS 只读取 `ADMIN_CORS_ALLOWED_ORIGINS` / `C_CORS_ALLOWED_ORIGINS` 白名单。
 - 生产 Cookie 为 `Secure` + `SameSite=None`，必须走 HTTPS。
+- `DASHSCOPE_API_KEY`、`OSS_ACCESS_KEY_ID/SECRET` 只放环境变量；日志禁止输出密钥和完整签名串。
+- OSS 当前先用 bucket `public-read` + 主账号 AK 跑通。TODO：改 private ACL，创建只具备该 bucket
+  `PutObject/GetObject/DeleteObject` 的 RAM 子账号，并给输入前缀配置 7 天生命周期。
 
 ## 9. CI
 

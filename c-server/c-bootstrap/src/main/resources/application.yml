@@ -45,6 +45,26 @@ app:
   ai:
     provider: ${AI_PROVIDER:mock}
     storage-dir: ${AI_STORAGE_DIR:./data/ai}
+    public-asset-base-url: ${PUBLIC_ASSET_BASE_URL:}
+    expose-ttl-seconds: ${AI_EXPOSE_TTL_SECONDS:600}
+    expose-downloads: ${AI_EXPOSE_DOWNLOADS:3}
+    signed-url-ttl-seconds: ${AI_SIGNED_URL_TTL_SECONDS:1800}
+    oss:
+      endpoint: ${OSS_ENDPOINT:}
+      bucket: ${OSS_BUCKET:}
+      access-key-id: ${OSS_ACCESS_KEY_ID:}
+      access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+      prefix: ${OSS_PREFIX:premium-member/ai}
+      path-style: ${OSS_PATH_STYLE:false}
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+      base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com}
+      image-model: ${DASHSCOPE_IMAGE_MODEL:wanx2.1-t2i-turbo}
+      edit-model: ${DASHSCOPE_EDIT_MODEL:wanx2.1-imageedit}
+      video-model: ${DASHSCOPE_VIDEO_MODEL:wan2.5-i2v-preview}
+      poll-interval: ${DASHSCOPE_POLL_INTERVAL:3s}
+      image-timeout: ${DASHSCOPE_IMAGE_TIMEOUT:2m}
+      video-timeout: ${DASHSCOPE_VIDEO_TIMEOUT:10m}
 
 mybatis-plus:
   configuration:

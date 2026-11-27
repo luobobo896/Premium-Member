@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/c/payments/mock/notify").permitAll()
                         .requestMatchers("/c/ai/files/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/c/assets/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/c/plans", "/c/benefits/products",
                                 "/c/ai/templates", "/c/contents")
                         .permitAll()

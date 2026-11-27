@@ -8,7 +8,9 @@ import com.premium.member.c.biz.ai.dto.QuotaLimit;
 import com.premium.member.c.biz.ai.entity.AiTask;
 import com.premium.member.c.biz.ai.entity.AiTemplate;
 import com.premium.member.c.biz.ai.entity.Asset;
+import com.premium.member.c.biz.ai.entity.AssetExpose;
 import com.premium.member.c.biz.benefit.entity.PmMemberPeriod;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
@@ -215,4 +217,29 @@ public interface AiMapper {
 
     @Update("UPDATE asset SET status = 'DELETED' WHERE id = #{id} AND status = 'ACTIVE'")
     int markAssetDeleted(@Param("id") long id);
+
+    @Insert("""
+            INSERT INTO asset_expose (token, asset_id, expire_at, remaining_downloads, created_at)
+            VALUES (#{token}, #{assetId}, #{expireAt}, #{remainingDownloads}, now())
+            """)
+    int insertExpose(AssetExpose expose);
+
+    @Select("""
+            SELECT * FROM asset_expose
+            WHERE token = #{token} AND expire_at > now() AND remaining_downloads > 0
+            FOR UPDATE
+            """)
+    AssetExpose lockExpose(@Param("token") String token);
+
+    @Update("""
+            UPDATE asset_expose SET remaining_downloads = remaining_downloads - 1
+            WHERE token = #{token} AND remaining_downloads > 0
+            """)
+    int consumeExpose(@Param("token") String token);
+
+    @Update("UPDATE asset SET expose_count = expose_count + 1 WHERE id = #{id}")
+    int incrementExposeCount(@Param("id") long id);
+
+    @Delete("DELETE FROM asset_expose WHERE token = #{token}")
+    int deleteExpose(@Param("token") String token);
 }

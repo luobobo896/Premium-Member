@@ -1,6 +1,7 @@
 package com.premium.member.c.biz.ai.service;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Locale;
@@ -15,8 +16,10 @@ import com.premium.member.c.biz.member.entity.PmMember;
 import com.premium.member.c.biz.member.mapper.PmMemberMapper;
 import com.premium.member.c.common.exception.BusinessException;
 import com.premium.member.c.common.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -40,12 +43,15 @@ public class AiAssetService {
     private final AiMapper aiMapper;
     private final PmMemberMapper memberMapper;
     private final StorageService storageService;
+    private final Duration signedUrlTtl;
 
     public AiAssetService(AiMapper aiMapper, PmMemberMapper memberMapper,
-            StorageService storageService) {
+            StorageService storageService,
+            @Value("${app.ai.signed-url-ttl-seconds:1800}") long signedUrlTtlSeconds) {
         this.aiMapper = aiMapper;
         this.memberMapper = memberMapper;
         this.storageService = storageService;
+        this.signedUrlTtl = Duration.ofSeconds(signedUrlTtlSeconds);
     }
 
     public AiAssetResponse upload(String phone, MultipartFile file) {
@@ -63,7 +69,8 @@ public class AiAssetService {
         } catch (IOException ex) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "文件读取失败");
         }
-        StorageService.StoredFile stored = storageService.store(content, EXTENSIONS.get(mime));
+        StorageService.StoredFile stored = storageService.store(content, EXTENSIONS.get(mime),
+                "input");
         Asset asset = new Asset();
         asset.setOwnerMemberId(member.getId());
         asset.setPurpose("INPUT");
@@ -73,7 +80,9 @@ public class AiAssetService {
         asset.setStatus("ACTIVE");
         asset.setExpireAt(OffsetDateTime.now(ZoneOffset.UTC).plusDays(30));
         aiMapper.insertAsset(asset);
-        return AiAssetResponse.from(asset);
+        String signed = storageService.signedUrl(asset.getStorageKey(), signedUrlTtl);
+        return AiAssetResponse.from(asset, StringUtils.hasText(signed)
+                ? signed : "/c/ai/files/" + asset.getStorageKey());
     }
 
     public Resource load(String storageKey) {

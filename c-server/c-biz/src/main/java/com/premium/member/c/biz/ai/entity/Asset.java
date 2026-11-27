@@ -31,5 +31,7 @@ public class Asset {
 
     private OffsetDateTime expireAt;
 
+    private Integer exposeCount;
+
     private OffsetDateTime createdAt;
 }
