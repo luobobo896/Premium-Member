@@ -17,6 +17,12 @@
       "style": {
         "navigationBarTitleText": "权益中心"
       }
+    },
+    {
+      "path": "pages/ai/ai",
+      "style": {
+        "navigationBarTitleText": "AI 创作"
+      }
     }
   ],
   "globalStyle": {

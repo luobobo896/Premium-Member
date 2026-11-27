@@ -7,11 +7,12 @@ import MemberView from './views/MemberView.vue';
 import OrderView from './views/OrderView.vue';
 import PayResultView from './views/PayResultView.vue';
 import PlanView from './views/PlanView.vue';
+import AiView from './views/AiView.vue';
 import { getAccessToken } from './api';
 import type { OrderInfo } from './api';
 
 const loggedIn = ref(Boolean(getAccessToken()));
-const activeView = ref<'benefit' | 'member' | 'orders' | 'payResult' | 'plans'>('member');
+const activeView = ref<'ai' | 'benefit' | 'member' | 'orders' | 'payResult' | 'plans'>('member');
 const currentOrder = ref<OrderInfo | null>(null);
 
 function handleLoggedIn() {
@@ -48,6 +49,13 @@ function handleOrdered(order: OrderInfo) {
         权益中心
       </button>
       <button
+        :class="{ active: activeView === 'ai' }"
+        type="button"
+        @click="activeView = 'ai'"
+      >
+        AI 创作
+      </button>
+      <button
         :class="{ active: activeView === 'plans' || activeView === 'payResult' }"
         type="button"
         @click="activeView = 'plans'"
@@ -64,6 +72,7 @@ function handleOrdered(order: OrderInfo) {
     </nav>
     <MemberView v-if="loggedIn && activeView === 'member'" @logout="handleLogout" />
     <BenefitView v-else-if="loggedIn && activeView === 'benefit'" @logout="handleLogout" />
+    <AiView v-else-if="loggedIn && activeView === 'ai'" @logout="handleLogout" />
     <PlanView v-else-if="loggedIn && activeView === 'plans'" @logout="handleLogout" @ordered="handleOrdered" />
     <PayResultView
       v-else-if="loggedIn && activeView === 'payResult' && currentOrder"

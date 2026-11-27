@@ -111,6 +111,58 @@ export interface OrderInfo {
   status: string;
 }
 
+export type AiType = 'DRESSUP' | 'PHOTO' | 'VIDEO';
+
+export interface AiTemplate {
+  category: string;
+  code: string;
+  coverUrl: string;
+  id: number;
+  name: string;
+  params: string;
+  sort: number;
+  type: AiType;
+}
+
+export interface AiAsset {
+  id: number;
+  mime: string;
+  purpose: string;
+  size: number;
+  url: string;
+}
+
+export interface AiQuotaPart {
+  limit: number;
+  remaining: number;
+  used: number;
+}
+
+export interface AiQuota {
+  image: AiQuotaPart;
+  period: BenefitPeriod | null;
+  video: AiQuotaPart;
+}
+
+export interface AiTask {
+  costCents: number;
+  createdAt: string;
+  failReason: string;
+  finishedAt: string | null;
+  id: number;
+  inputAssetId: number | null;
+  inputUrl: string | null;
+  outputAssetId: number | null;
+  outputMime: string | null;
+  outputUrl: string | null;
+  periodId: number;
+  status: string;
+  taskNo: string;
+  templateId: number;
+  templateName: string;
+  type: AiType;
+}
+
 interface ApiResponse<T> {
   code: number;
   data: T;
@@ -227,6 +279,68 @@ export function getOrders(): Promise<OrderInfo[]> {
 
 export function getOrder(orderNo: string): Promise<OrderInfo> {
   return request<OrderInfo>(`/c/orders/${encodeURIComponent(orderNo)}`);
+}
+
+export function assetUrl(path: null | string): string {
+  if (!path) return '';
+  return path.startsWith('http') ? path : `${API_BASE}${path}`;
+}
+
+export function getAiTemplates(type?: AiType): Promise<AiTemplate[]> {
+  const query = type ? `?type=${type}` : '';
+  return request<AiTemplate[]>(`/c/ai/templates${query}`);
+}
+
+export function getAiQuota(): Promise<AiQuota> {
+  return request<AiQuota>('/c/quota');
+}
+
+export function getAiTasks(): Promise<AiTask[]> {
+  return request<AiTask[]>('/c/ai/tasks');
+}
+
+export function getAiTask(taskNo: string): Promise<AiTask> {
+  return request<AiTask>(`/c/ai/tasks/${encodeURIComponent(taskNo)}`);
+}
+
+export function createAiTask(data: {
+  idempotencyKey: string;
+  inputAssetId: number;
+  templateId: number;
+}): Promise<AiTask> {
+  return request<AiTask>('/c/ai/tasks', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function uploadAiAsset(file: File): Promise<AiAsset> {
+  const form = new FormData();
+  form.append('file', file);
+  const headers = new Headers({ Accept: 'application/json' });
+  const token = getAccessToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/c/ai/assets`, {
+      method: 'POST',
+      headers,
+      body: form,
+      credentials: 'include',
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new ApiError('上传失败，请检查网络或文件大小', 0);
+  }
+  const body = (await response.json().catch(() => null)) as ApiResponse<AiAsset> | null;
+  if (!response.ok || !body || body.code !== 0) {
+    throw new ApiError(body?.error || body?.message || '上传失败', response.status, body?.bizCode);
+  }
+  return body.data;
+}
+
+export function deleteAiWork(id: number): Promise<void> {
+  return request<void>(`/c/ai/works/${id}`, { method: 'DELETE' });
 }
 
 export async function logout(): Promise<void> {

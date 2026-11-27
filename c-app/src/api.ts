@@ -74,6 +74,53 @@ export interface BenefitClaimHistory {
   status: string;
 }
 
+export type AiType = 'DRESSUP' | 'PHOTO' | 'VIDEO';
+
+export interface AiTemplate {
+  category: string;
+  code: string;
+  coverUrl: string;
+  id: number;
+  name: string;
+  params: string;
+  sort: number;
+  type: AiType;
+}
+
+export interface AiAsset {
+  id: number;
+  mime: string;
+  purpose: string;
+  size: number;
+  url: string;
+}
+
+export interface AiQuotaPart {
+  limit: number;
+  remaining: number;
+  used: number;
+}
+
+export interface AiQuota {
+  image: AiQuotaPart;
+  period: BenefitPeriod | null;
+  video: AiQuotaPart;
+}
+
+export interface AiTask {
+  createdAt: string;
+  failReason: string;
+  finishedAt: string | null;
+  id: number;
+  inputUrl: string | null;
+  outputMime: string | null;
+  outputUrl: string | null;
+  status: string;
+  taskNo: string;
+  templateName: string;
+  type: AiType;
+}
+
 interface ApiResponse<T> {
   code: number;
   data: T;
@@ -107,8 +154,8 @@ export function clearToken(): void {
 
 function request<T>(
   path: string,
-  method: 'GET' | 'POST',
-  data?: Record<string, string>,
+  method: 'DELETE' | 'GET' | 'POST',
+  data?: unknown,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
@@ -164,6 +211,65 @@ export function claimBenefit(sku: string): Promise<BenefitClaimResult> {
 
 export function getBenefitClaims(): Promise<BenefitClaimHistory[]> {
   return request('/c/benefits/claims', 'GET');
+}
+
+export function assetUrl(path: null | string): string {
+  if (!path) return '';
+  return path.startsWith('http') ? path : `${API_BASE}${path}`;
+}
+
+export function getAiTemplates(type?: AiType): Promise<AiTemplate[]> {
+  return request(`/c/ai/templates${type ? `?type=${type}` : ''}`, 'GET');
+}
+
+export function getAiQuota(): Promise<AiQuota> {
+  return request('/c/quota', 'GET');
+}
+
+export function getAiTasks(): Promise<AiTask[]> {
+  return request('/c/ai/tasks', 'GET');
+}
+
+export function getAiTask(taskNo: string): Promise<AiTask> {
+  return request(`/c/ai/tasks/${encodeURIComponent(taskNo)}`, 'GET');
+}
+
+export function createAiTask(data: {
+  idempotencyKey: string;
+  inputAssetId: number;
+  templateId: number;
+}): Promise<AiTask> {
+  return request('/c/ai/tasks', 'POST', data);
+}
+
+export function deleteAiWork(id: number): Promise<void> {
+  return request(`/c/ai/works/${id}`, 'DELETE');
+}
+
+export function uploadAiAsset(filePath: string): Promise<AiAsset> {
+  return new Promise((resolve, reject) => {
+    uni.uploadFile({
+      url: `${API_BASE}/c/ai/assets`,
+      filePath,
+      name: 'file',
+      header: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+      success: (response) => {
+        let body: ApiResponse<AiAsset> | null = null;
+        try {
+          body = JSON.parse(response.data) as ApiResponse<AiAsset>;
+        } catch {
+          reject(new ApiError('上传响应无法解析', response.statusCode));
+          return;
+        }
+        if (response.statusCode >= 200 && response.statusCode < 300 && body.code === 0) {
+          resolve(body.data);
+          return;
+        }
+        reject(new ApiError(body.error || body.message || '上传失败', response.statusCode, body.bizCode));
+      },
+      fail: () => reject(new ApiError('上传失败，请检查网络', 0)),
+    });
+  });
 }
 
 export async function logout(): Promise<void> {
