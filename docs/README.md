@@ -15,3 +15,4 @@
 | `09-openapi.md` | OpenAPI/Swagger 使用 |
 | `10-deploy.md` | 本地启动、联调、打包部署 |
 | `11-acceptance.md` | 实测命令与真实输出、未实测项与风险 |
+| `12-system-management.md` | 用户/角色/菜单/部门接口清单、页面操作与删除保护 |

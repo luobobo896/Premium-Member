@@ -257,3 +257,96 @@ GET /api/members?page=2&pageSize=2  200  第 2 页出现 M202611270001 张三
 3. 没有登录失败锁定、限流和 refresh token 旋转；生产接入网关限流或在后续迭代补充。
 4. 生产跨域 Cookie 必须 HTTPS + `Secure` + `SameSite=None`；当前 dev 为 HTTP + Lax。
 5. c-server、c-app、c-h5 按指示冻结，只验证了骨架启动/构建，没有业务功能。
+
+## 系统管理四模块（item 8，2026-11-27 补充）
+
+本节覆盖用户、角色、菜单、部门四模块。
+
+### 构建与前端检查
+
+```text
+$ jenv exec /Users/hanson/work/Env/apache-maven-3.8.8/bin/mvn -q -DskipTests package
+BUILD SUCCESS（admin-common/framework/system/member/bootstrap 全部编译通过）
+
+$ pnpm -F @vben/web-antd run typecheck
+vue-tsc --noEmit --skipLibCheck
+通过（Node 25 触发上游 engines 警告，不影响结果）
+
+$ pnpm run build:antd
+Tasks: 11 successful, 11 total
+```
+
+### 删除保护原文补充
+
+上半部分已列 bizCode；这里补关键错误文案，确认真实接口和页面提示一致：
+
+```text
+admin 删除自己  USER_PROTECTED「内置 admin 用户不能删除」
+临时用户删自己  USER_PROTECTED「不能删除当前登录用户」
+super_admin     ROLE_PROTECTED「super_admin 角色受保护」
+父菜单          MENU_HAS_CHILDREN「存在子菜单，不能删除」
+被角色引用菜单  MENU_IN_USE「菜单已被角色引用，不能删除」
+父部门          DEPT_HAS_CHILDREN「存在子部门，不能删除」
+有用户部门      DEPT_IN_USE「部门下存在用户，不能删除」
+viewer 用户列表 FORBIDDEN「没有权限」
+```
+
+参数校验：
+
+```text
+重复登录名 -> 409 USERNAME_EXISTS「登录名已存在」
+密码 3 位  -> 400 VALIDATION_ERROR「password: 个数必须在6和64之间」
+```
+
+### 浏览器真跑（ego-browser）
+
+环境：`pnpm dev:antd` @ `http://127.0.0.1:5666`，admin-server @ `http://127.0.0.1:5320/api`，
+账号 `admin / Admin@123456`。
+
+已走通：
+
+```text
+用户：列表 -> 新增 -> 编辑 -> 分配角色 -> 删除；admin 删除被阻止
+角色：列表 -> 新增 -> 编辑 -> 分配菜单（23 个菜单 ID 落库）-> 分配权限（4 个权限 ID 落库）-> 删除；
+      super_admin 删除被阻止
+菜单：树表 -> 新增目录 -> 新增子菜单 -> 编辑 -> 删除父级被阻止 -> 删除子级和父级
+部门：树表 -> 新增父部门 -> 新增子部门 -> 编辑 -> 删除父级被阻止 -> 删除子级和父级；
+      删除有用户的技术部被阻止
+```
+
+截图：
+
+```text
+docs/screenshots/05-system-user-list.png
+docs/screenshots/07-system-user-create.png
+docs/screenshots/system-user-created.png
+docs/screenshots/system-user-edit.png
+docs/screenshots/system-user-roles.png
+docs/screenshots/system-user-delete-protected.png
+docs/screenshots/system-role-list.png
+docs/screenshots/system-role-create.png
+docs/screenshots/system-role-menus.png
+docs/screenshots/system-role-permissions.png
+docs/screenshots/system-role-delete-protected.png
+docs/screenshots/system-menu-list.png
+docs/screenshots/system-menu-create.png
+docs/screenshots/system-menu-edit.png
+docs/screenshots/system-menu-delete-protected.png
+docs/screenshots/system-dept-list.png
+docs/screenshots/system-dept-create.png
+docs/screenshots/system-dept-edit.png
+docs/screenshots/system-dept-delete-protected.png
+docs/screenshots/system-dept-in-use.png
+```
+
+### 收尾状态与未验证项
+
+测试记录已删除，最后执行 `docker compose down -v && docker compose up -d` 重建开发库，
+重新确认种子数据为用户 3、角色 3、菜单根 4、部门根 1、权限点 22。
+
+未验证/已知限制：
+
+1. 自身删除只在接口层验证（临时用户 + 超级管理员角色），没有单独做浏览器截图；浏览器实测了 admin 和 super_admin 两条保护。
+2. 角色/菜单/权限调整后会清理 Redis 权限缓存，但当前 access token 内嵌权限不变，需要重新登录或刷新才生效。
+3. 菜单新增带权限标识会自动补权限点；删除菜单不级联删除权限点，避免误删仍被角色引用的授权。
+4. 浏览器验收使用本机 Node 25，和上游声明的 `^22.18 || ^24` 不一致，但 typecheck、dev、页面操作均通过。

@@ -334,6 +334,7 @@ async function submitPermissions() {
           分配菜单
         </Button>
         <Button
+          v-if="row.code !== 'super_admin'"
           v-access:code="'system:role:update'"
           size="small"
           type="link"

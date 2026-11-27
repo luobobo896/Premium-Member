@@ -71,20 +71,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     boolean existsByUsername(@Param("username") String username);
 
     /**
-     * 判断登录名是否已被其他用户占用。
-     *
-     * @param username  登录名
-     * @param excludeId 排除的用户 ID
-     * @return true 表示已存在
-     */
-    @Select("""
-            SELECT EXISTS (
-                SELECT 1 FROM sys_user WHERE username = #{username} AND deleted = 0 AND id <> #{excludeId}
-            )
-            """)
-    boolean existsByUsernameExcluding(@Param("username") String username, @Param("excludeId") long excludeId);
-
-    /**
      * 查询用户的角色 ID。
      *
      * @param userId 用户 ID
