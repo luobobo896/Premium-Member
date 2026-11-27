@@ -30,6 +30,8 @@ app:
     path: /c/auth
     secure: ${C_COOKIE_SECURE:false}
     max-age: ${C_JWT_REFRESH_TTL:30d}
+  benefit:
+    card-secret: ${BENEFIT_CARD_SECRET:premium-member-dev-only-card-secret}
 
 mybatis-plus:
   configuration:

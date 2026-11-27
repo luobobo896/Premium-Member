@@ -82,6 +82,10 @@ async function signOut(): Promise<void> {
   }
 }
 
+function openBenefit(): void {
+  uni.navigateTo({ url: '/pages/benefit/benefit' });
+}
+
 onShow(load);
 </script>
 
@@ -132,6 +136,7 @@ onShow(load);
         </view>
       </view>
 
+      <button class="secondary-button benefit-entry" @click="openBenefit">权益中心</button>
       <button class="secondary-button logout" :loading="loggingOut" @click="signOut">
         {{ loggingOut ? '退出中' : '退出登录' }}
       </button>
@@ -270,5 +275,11 @@ onShow(load);
 
 .logout {
   margin-top: 48rpx;
+}
+
+.benefit-entry {
+  margin-top: 32rpx;
+  background: #2f6b5f;
+  color: #ffffff;
 }
 </style>

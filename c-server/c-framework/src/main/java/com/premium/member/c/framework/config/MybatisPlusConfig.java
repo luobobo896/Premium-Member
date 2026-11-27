@@ -7,6 +7,6 @@ import org.springframework.context.annotation.Configuration;
  * C 端 Mapper 扫描。
  */
 @Configuration
-@MapperScan({"com.premium.member.c.user.mapper", "com.premium.member.c.biz.member.mapper"})
+@MapperScan({"com.premium.member.c.user.mapper", "com.premium.member.c.biz"})
 public class MybatisPlusConfig {
 }

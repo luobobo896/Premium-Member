@@ -11,6 +11,12 @@
       "style": {
         "navigationBarTitleText": "会员中心"
       }
+    },
+    {
+      "path": "pages/benefit/benefit",
+      "style": {
+        "navigationBarTitleText": "权益中心"
+      }
     }
   ],
   "globalStyle": {

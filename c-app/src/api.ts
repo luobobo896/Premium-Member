@@ -24,6 +24,56 @@ export interface MemberInfo {
   joinedAt: string;
 }
 
+export interface BenefitPeriod {
+  endAt: string;
+  id: number;
+  periodNo: string;
+  startAt: string;
+}
+
+export interface BenefitProduct {
+  cardMasked: string | null;
+  claimed: boolean;
+  claimStatus: string | null;
+  claimedAt: string | null;
+  description: string;
+  inStock: boolean;
+  name: string;
+  rules: string;
+  skuCode: string;
+}
+
+export interface BenefitCenter {
+  period: BenefitPeriod | null;
+  products: BenefitProduct[];
+  quotaRemaining: number;
+  quotaTotal: number;
+  quotaUsed: number;
+}
+
+export interface BenefitClaimResult {
+  alreadyClaimed: boolean;
+  cardCode: string | null;
+  cardMasked: string | null;
+  claimId: number;
+  claimedAt: string | null;
+  productName: string;
+  productSku: string;
+  redemption: string | null;
+  status: string;
+}
+
+export interface BenefitClaimHistory {
+  cardMasked: string | null;
+  claimId: number;
+  claimedAt: string | null;
+  productName: string;
+  productSku: string;
+  redemption: string | null;
+  remark: string;
+  status: string;
+}
+
 interface ApiResponse<T> {
   code: number;
   data: T;
@@ -102,6 +152,18 @@ export function getInfo(): Promise<{ id: number; phone: string; nickname: string
 
 export function getMember(): Promise<MemberInfo> {
   return request('/c/members/me', 'GET');
+}
+
+export function getBenefits(): Promise<BenefitCenter> {
+  return request('/c/benefits', 'GET');
+}
+
+export function claimBenefit(sku: string): Promise<BenefitClaimResult> {
+  return request(`/c/benefits/${encodeURIComponent(sku)}/claim`, 'POST');
+}
+
+export function getBenefitClaims(): Promise<BenefitClaimHistory[]> {
+  return request('/c/benefits/claims', 'GET');
 }
 
 export async function logout(): Promise<void> {

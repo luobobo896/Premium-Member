@@ -37,9 +37,38 @@ input {
 .app-shell {
   min-height: 100dvh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
   padding: 24px 16px;
+}
+
+.view-switch {
+  display: flex;
+  width: 100%;
+  max-width: 420px;
+  padding: 4px;
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+  background: var(--c-surface);
+}
+
+.view-switch button {
+  flex: 1;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-muted);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.view-switch button.active {
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+  font-weight: 600;
 }
 
 .surface {
@@ -181,6 +210,122 @@ input {
 
 .state-block {
   margin-top: 16px;
+}
+
+.benefit-surface {
+  max-width: 480px;
+}
+
+.benefit-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.benefit-card {
+  padding: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+}
+
+.benefit-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.benefit-card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.benefit-desc {
+  margin: 6px 0 0;
+  color: var(--c-muted);
+  font-size: 14px;
+}
+
+.benefit-rules {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f7f5f0;
+  color: var(--c-muted);
+  font-size: 13px;
+}
+
+.benefit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--c-muted);
+  font-size: 12px;
+}
+
+.benefit-card .submit-button {
+  margin-top: 14px;
+}
+
+.code-reveal {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--c-accent);
+  border-radius: 12px;
+  background: var(--c-accent-soft);
+}
+
+.code-value {
+  margin: 0;
+  color: var(--c-accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+}
+
+.code-note {
+  margin: 8px 0 12px;
+  color: var(--c-muted);
+  font-size: 13px;
+}
+
+.history-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--c-border);
+}
+
+.history-section h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.history-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.history-list li:last-child {
+  border-bottom: 0;
+}
+
+.history-meta {
+  display: block;
+  color: var(--c-muted);
+  font-size: 12px;
 }
 
 .van-button--plain.van-button--primary {
