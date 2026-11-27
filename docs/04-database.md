@@ -18,6 +18,10 @@
 | `sys_role_permission` | 角色-权限 |
 | `sys_role_menu` | 角色-菜单 |
 | `pm_member` | 会员业务示例，`owner_id` 关联创建人用于数据权限 |
+| `pm_member_period` | 会员权益周期，PENDING/ACTIVE/EXPIRED |
+| `benefit_product` | 权益商品 SKU |
+| `benefit_card` | 卡密，密文/哈希/掩码存储 |
+| `benefit_claim` | 权益领取单，周期 + SKU 唯一 |
 | `sys_operation_log` | 操作审计日志，AOP 异步写入 |
 
 关系：
