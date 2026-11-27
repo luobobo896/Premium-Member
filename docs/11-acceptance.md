@@ -350,3 +350,42 @@ docs/screenshots/system-dept-in-use.png
 2. 角色/菜单/权限调整后会清理 Redis 权限缓存，但当前 access token 内嵌权限不变，需要重新登录或刷新才生效。
 3. 菜单新增带权限标识会自动补权限点；删除菜单不级联删除权限点，避免误删仍被角色引用的授权。
 4. 浏览器验收使用本机 Node 25，和上游声明的 `^22.18 || ^24` 不一致，但 typecheck、dev、页面操作均通过。
+
+## 会员 CRUD 前端（item 12 阶段 1，2026-11-27）
+
+环境：vben dev `http://127.0.0.1:5666`，admin-server `http://127.0.0.1:5320/api`，
+账号 `admin / Admin@123456`。
+
+浏览器实际走通：
+
+```text
+/members -> 新增会员
+  username=qa_member_01 nickname=验收会员 phone=13911112222 level=GOLD
+  points=88 balance=12.34 status=启用
+  -> 保存成功，total=4，仍停留第 1 页
+
+同页 -> 编辑
+  nickname=验收会员已编辑 balance=20.50 level=PLATINUM
+  -> 保存成功，列表即时刷新，仍停留第 1 页
+
+同页 -> 详情抽屉
+  -> 会员编号、登录名、昵称、手机号、等级、积分、余额、状态、入会时间、备注齐全
+
+同页 -> 删除 -> 确认弹窗 -> 确定
+  -> 已删除，total=3，分页保持第 1 页
+```
+
+后端校验错误按原提示展示，抽屉不关闭：
+
+```text
+phone=123 保存 -> phone: 手机号格式不正确
+```
+
+截图：
+
+```text
+docs/screenshots/member-create.png
+docs/screenshots/member-edit.png
+docs/screenshots/member-detail.png
+docs/screenshots/member-delete-confirm.png
+```
