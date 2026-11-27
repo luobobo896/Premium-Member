@@ -33,6 +33,13 @@ if ! grep -q 'android:networkSecurityConfig' android/app/src/main/AndroidManifes
     android/app/src/main/AndroidManifest.xml
 fi
 
+# Android 15 强制全屏时 adjustMarginsForEdgeToEdge 会给 WebView 留出系统栏边距，
+# 边距区域取窗口背景色；不写死会露出 Theme 默认白底。
+if ! grep -q 'android:windowBackground' android/app/src/main/res/values/styles.xml; then
+  perl -0pi -e 's|(<style name="AppTheme\.NoActionBar"[^>]*>)|$1\n        <item name="android:windowBackground">#0B0B0D</item>|' \
+    android/app/src/main/res/values/styles.xml
+fi
+
 # android/ 未入库，模板默认 versionName "1.0"，每次构建写回
 sed -i '' 's/versionName ".*"/versionName "1.0.0"/' android/app/build.gradle
 
