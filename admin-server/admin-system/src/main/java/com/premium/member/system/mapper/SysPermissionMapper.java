@@ -27,4 +27,21 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
             ORDER BY p.code
             """)
     List<String> selectCodesByUserId(@Param("userId") long userId);
+
+    /**
+     * 查询全部未删除权限点，供角色授权使用。
+     *
+     * @return 权限点列表
+     */
+    @Select("SELECT * FROM sys_permission WHERE deleted = 0 ORDER BY type, code")
+    List<SysPermission> selectAll();
+
+    /**
+     * 按权限码查询未删除权限点。
+     *
+     * @param code 权限码
+     * @return 权限点或 null
+     */
+    @Select("SELECT * FROM sys_permission WHERE code = #{code} AND deleted = 0 LIMIT 1")
+    SysPermission selectByCode(@Param("code") String code);
 }

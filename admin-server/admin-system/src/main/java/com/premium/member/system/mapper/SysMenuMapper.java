@@ -35,4 +35,30 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
      */
     @Select("SELECT * FROM sys_menu WHERE status = 1 AND deleted = 0 ORDER BY sort, id")
     List<SysMenu> selectAllActive();
+
+    /**
+     * 查询全部未删除菜单，管理端树包含停用节点。
+     *
+     * @return 菜单列表
+     */
+    @Select("SELECT * FROM sys_menu WHERE deleted = 0 ORDER BY sort, id")
+    List<SysMenu> selectAll();
+
+    /**
+     * 统计直接子菜单数。
+     *
+     * @param parentId 父菜单 ID
+     * @return 子菜单数
+     */
+    @Select("SELECT COUNT(*) FROM sys_menu WHERE parent_id = #{parentId} AND deleted = 0")
+    long countChildren(@Param("parentId") long parentId);
+
+    /**
+     * 统计引用该菜单的角色数。
+     *
+     * @param menuId 菜单 ID
+     * @return 引用数
+     */
+    @Select("SELECT COUNT(*) FROM sys_role_menu WHERE menu_id = #{menuId}")
+    long countRoleRefs(@Param("menuId") long menuId);
 }

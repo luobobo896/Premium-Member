@@ -102,6 +102,42 @@ codes=200 code_count=22
 
 菜单顶层为 Dashboard、Member、System、About；按钮节点不进入 `/menu/all`。
 
+## 系统管理 API
+
+```text
+GET /api/system/users?page=1&pageSize=5        200 total=3
+GET /api/system/roles?page=1&pageSize=5        200 total=3
+GET /api/system/roles/options                  200 size=3
+GET /api/system/roles/permissions              200 size=22
+GET /api/system/roles/2/menus                  200 size=9
+GET /api/system/roles/2/permissions            200 size=6
+GET /api/system/depts                          200 1 棵树
+GET /api/system/menus                          200 4 棵树
+```
+
+部门、角色、菜单、用户均完成新增/编辑/删除链路，所有请求 200：
+
+```text
+dept_create=200  dept_update=200  dept_delete=200
+role_create=200  role_update=200  role_menus=200  role_perms=200  role_delete=200
+menu_create=200  menu_update=200  menu_delete=200
+user_create=200  user_roles=200   user_update=200  user_password=200  user_delete=200
+```
+
+保护规则：
+
+```text
+role_in_use=409             biz=ROLE_IN_USE
+role_protected_delete=403   biz=ROLE_PROTECTED
+role_protected_menu=403     biz=ROLE_PROTECTED
+role_protected_status=403   biz=ROLE_PROTECTED
+user_protected_roles=403    biz=USER_PROTECTED
+dept_has_children=409       biz=DEPT_HAS_CHILDREN
+menu_in_use=409             biz=MENU_IN_USE
+username_exists=409         biz=USERNAME_EXISTS
+role_code_exists=409        biz=ROLE_CODE_EXISTS
+```
+
 ## 按钮权限
 
 viewer 创建会员：
@@ -195,11 +231,11 @@ login admin/Admin@123456 -> http://127.0.0.1:5666/analytics
 /system/menu    菜单管理 - Premium Member Admin
 /system/dept    部门管理 - Premium Member Admin
 /system/role    角色管理 - Premium Member Admin
-/system/user    用户管理 - Premium Member Admin
+/system/user    用户管理 - Premium Member Admin（真实列表：3 条种子用户、角色标签、编辑/分配角色/重置密码/启停/删除）
 /about          关于 - Premium Member Admin
 ```
 
-以上 8 个菜单路由逐个访问均为真实页面或占位页，没有 404。
+以上 8 个菜单路由逐个访问均为真实页面，没有 404。
 
 会员列表分页（`pageSize=2`）：
 
@@ -212,13 +248,12 @@ GET /api/members?page=2&pageSize=2  200  第 2 页出现 M202611270001 张三
 
 刷新后 access token 已替换。退出登录后回到 `/auth/login`，本地 access 状态为 `accessToken: null`；登出前保存的 access token 再请求 `/api/members` 返回 401 `UNAUTHORIZED`。
 
-截图：`docs/screenshots/01-login.png`、`02-home.png`、`03-members-page2-after-refresh.png`、`04-members-page1.png`、`05-placeholder-system-user.png`、`06-logged-out.png`。
+截图：`docs/screenshots/01-login.png`、`02-home.png`、`03-members-page2-after-refresh.png`、`04-members-page1.png`、`05-system-user-list.png`、`06-logged-out.png`、`07-system-user-create.png`。
 
 ## 未实测项与风险
 
-1. 系统管理 4 个菜单当前是占位页，只保证菜单结构完整、点击不 404，没有 CRUD 交互。
-2. 会员列表只读分页，新增/编辑/删除按钮未接入页面；后端接口已具备。
-3. 当前没有角色/权限写接口，权限缓存 10 分钟内可能滞后；新增角色编辑时必须调用 `PermissionCache.evict(userId)`。
-4. 没有登录失败锁定、限流和 refresh token 旋转；生产接入网关限流或在后续迭代补充。
-5. 生产跨域 Cookie 必须 HTTPS + `Secure` + `SameSite=None`；当前 dev 为 HTTP + Lax。
-6. c-server、c-app、c-h5 按指示冻结，只验证了骨架启动/构建，没有业务功能。
+1. 会员列表页面仍是只读分页，新增/编辑/删除按钮未接入页面；后端接口已具备。
+2. 角色/权限变更会清理相关用户的权限缓存；但 access token 内的权限快照最长保留 2 小时，立即生效需要重新登录或缩短 access TTL。
+3. 没有登录失败锁定、限流和 refresh token 旋转；生产接入网关限流或在后续迭代补充。
+4. 生产跨域 Cookie 必须 HTTPS + `Secure` + `SameSite=None`；当前 dev 为 HTTP + Lax。
+5. c-server、c-app、c-h5 按指示冻结，只验证了骨架启动/构建，没有业务功能。

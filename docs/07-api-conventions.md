@@ -40,6 +40,12 @@ HTTP 状态码同时使用真实语义：400/401/403/404/405/409/500。前端 ax
 | `NOT_FOUND` | 404 | 路由或资源不存在 |
 | `MEMBER_NOT_FOUND` | 404 | 会员不存在 |
 | `MEMBER_NO_EXISTS` | 409 | 会员编号冲突 |
+| `USER_NOT_FOUND` / `ROLE_NOT_FOUND` / `MENU_NOT_FOUND` | 404 | 系统管理资源不存在 |
+| `USERNAME_EXISTS` / `ROLE_CODE_EXISTS` | 409 | 登录名或角色码重复 |
+| `ROLE_IN_USE` | 409 | 角色仍绑定用户，禁止删除 |
+| `DEPT_HAS_CHILDREN` / `DEPT_IN_USE` | 409 | 部门存在子部门或用户 |
+| `MENU_HAS_CHILDREN` / `MENU_IN_USE` | 409 | 菜单存在子节点或被角色引用 |
+| `USER_PROTECTED` / `ROLE_PROTECTED` | 403 | 内置 admin 或 super_admin 受保护 |
 | `INTERNAL_ERROR` | 500 | 未预期异常，响应不暴露细节 |
 
 ## 分页

@@ -15,6 +15,17 @@
 | GET | `/api/menu/all` | Bearer | 返回 vben 后端模式路由树 |
 | GET | `/api/system/menu/list` | Bearer + `system:menu:list` | 管理端菜单树，包含按钮 `authCode` |
 | GET | `/api/system/dept/list` | Bearer + `system:dept:list` | 部门树 |
+| GET/POST | `/api/system/users` | Bearer + `system:user:*` | 用户分页与创建 |
+| PUT/DELETE | `/api/system/users/{id}` | Bearer + `system:user:update/delete` | 编辑、删除用户 |
+| PUT | `/api/system/users/{id}/password`、`/status`、`/roles` | Bearer + `system:user:update` | 重置密码、启停、分配角色 |
+| GET/POST | `/api/system/roles` | Bearer + `system:role:*` | 角色分页与创建 |
+| GET | `/api/system/roles/options`、`/permissions` | Bearer + `system:role:list` | 角色下拉与权限点列表 |
+| PUT/DELETE | `/api/system/roles/{id}` | Bearer + `system:role:update/delete` | 编辑、删除角色 |
+| GET/PUT | `/api/system/roles/{id}/menus`、`/permissions` | Bearer + `system:role:list/update` | 查询、分配菜单与权限点 |
+| GET/POST | `/api/system/depts` | Bearer + `system:dept:*` | 部门树与创建 |
+| PUT/DELETE | `/api/system/depts/{id}` | Bearer + `system:dept:update/delete` | 编辑、删除部门 |
+| GET/POST | `/api/system/menus` | Bearer + `system:menu:*` | 菜单树与创建 |
+| PUT/DELETE | `/api/system/menus/{id}` | Bearer + `system:menu:update/delete` | 编辑、删除菜单 |
 
 ## 登录
 
@@ -121,7 +132,7 @@ app: {
 ```
 
 7. **开发代理**：`admin-web/apps/web-antd/vite.config.ts` 把 `/api` 重写到 `http://127.0.0.1:5320/api`，浏览器侧基地址仍为 `/api`。Nitro mock 已在 `.env.development` 关闭。
-8. **菜单组件路径**：种子菜单的组件路径均已在 admin-web 落地：`/member/list/index` 是真实会员列表，`/system/menu|dept|role|user/index` 是最小占位页，保留后端菜单结构且不再 404。
+8. **菜单组件路径**：种子菜单的组件路径均已在 admin-web 落地：`/member/list/index` 是会员列表，`/system/menu|dept|role|user/index` 是用户、角色、部门、菜单管理页，支持对应 CRUD 和授权操作。
 9. **Cookie 时长**：vben mock 的 `jwt` Cookie `maxAge` 是 24 小时，但 refresh JWT 是 30 天；后端统一为 30 天，避免 Cookie 先于 token 失效。
 10. **验证码**：后端提供 `/auth/captcha` 并在 `LoginRequest` 中支持可选 `captchaId/captchaCode`；不传时不强制。admin-web 登录页已移除上游 mock 的滑块和账号下拉，只保留真实用户名/密码表单。
 
@@ -129,5 +140,7 @@ app: {
 
 - 登录失败统一返回“用户名或密码错误”，不区分用户不存在与密码错误。
 - 停用账号登录返回 403 `USER_DISABLED`。
+- 内置 `admin` 不能删除、停用或修改角色；`super_admin` 角色不能删除、停用或修改菜单/权限点。
+- 删除部门前检查子部门与部门用户；删除菜单前检查子菜单与角色引用；删除角色前检查用户绑定。
 - 认证失败返回 401，权限不足返回 403；响应不包含堆栈、SQL 或内部类名。
 - `/auth/codes`、`/user/info`、`/menu/all` 都必须带有效 access token。
