@@ -155,6 +155,9 @@ cd deploy
 - `c-h5`：npm ci + build
 - 五个 Dockerfile：`docker build` 验证，不 push
 
+首轮运行 `45945896557` 全部通过：3 个构建 job 和 5 个 Docker build job 均成功，
+只有 GitHub 对 Node 20 action 的弃用提醒，不影响结果。
+
 ## 10. 验收记录
 
 环境：macOS 15.7.5 arm64，JDK 21.0.9，Maven 3.8.8，Docker 29.8.2，
@@ -229,6 +232,6 @@ docs/screenshots/deploy-health.png
 
 1. 只用自签证书验证了 TLS 入口，没有接入真实 CA 证书和域名。
 2. `restore.md` 的恢复命令未在现有数据上执行，避免破坏验收库。
-3. GitHub Actions 工作流已提交，推送后才会在 GitHub 侧真实运行。
+3. GitHub Actions 首轮已通过；后续提交的 CI 结果以对应 run 为准。
 4. 微信支付仍是占位实现，AI 供应商仍为 mock；本轮未接真实外部服务。
 5. 只验证单机 Compose，没有验证多节点编排、外部对象存储或托管数据库。
