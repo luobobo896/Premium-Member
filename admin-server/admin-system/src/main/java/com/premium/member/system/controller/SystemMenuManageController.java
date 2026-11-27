@@ -3,6 +3,7 @@ package com.premium.member.system.controller;
 import java.util.List;
 
 import com.premium.member.common.api.R;
+import com.premium.member.framework.audit.AuditLog;
 import com.premium.member.system.dto.MenuRequest;
 import com.premium.member.system.dto.MenuTreeNode;
 import com.premium.member.system.service.MenuService;
@@ -52,6 +53,7 @@ public class SystemMenuManageController {
      * @return 新菜单
      */
     @PostMapping
+    @AuditLog(module = "菜单", action = "新增")
     @PreAuthorize("hasAuthority('system:menu:create')")
     public R<MenuTreeNode> create(@Valid @RequestBody MenuRequest request) {
         return R.ok(menuService.create(request));
@@ -65,6 +67,7 @@ public class SystemMenuManageController {
      * @return 更新后的菜单
      */
     @PutMapping("/{id}")
+    @AuditLog(module = "菜单", action = "编辑")
     @PreAuthorize("hasAuthority('system:menu:update')")
     public R<MenuTreeNode> update(@PathVariable long id, @Valid @RequestBody MenuRequest request) {
         return R.ok(menuService.update(id, request));
@@ -77,6 +80,7 @@ public class SystemMenuManageController {
      * @return 空数据响应
      */
     @DeleteMapping("/{id}")
+    @AuditLog(module = "菜单", action = "删除")
     @PreAuthorize("hasAuthority('system:menu:delete')")
     public R<Void> delete(@PathVariable long id) {
         menuService.delete(id);

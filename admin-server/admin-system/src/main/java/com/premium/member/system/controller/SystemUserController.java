@@ -2,6 +2,7 @@ package com.premium.member.system.controller;
 
 import com.premium.member.common.api.PageResult;
 import com.premium.member.common.api.R;
+import com.premium.member.framework.audit.AuditLog;
 import com.premium.member.system.dto.PasswordResetRequest;
 import com.premium.member.system.dto.RoleIdsRequest;
 import com.premium.member.system.dto.StatusRequest;
@@ -53,6 +54,7 @@ public class SystemUserController {
      * @return 新用户
      */
     @PostMapping
+    @AuditLog(module = "用户", action = "新增")
     @PreAuthorize("hasAuthority('system:user:create')")
     public R<UserResponse> create(@Valid @RequestBody UserCreateRequest request) {
         return R.ok(userService.create(request));
@@ -66,6 +68,7 @@ public class SystemUserController {
      * @return 更新后的用户
      */
     @PutMapping("/{id}")
+    @AuditLog(module = "用户", action = "编辑")
     @PreAuthorize("hasAuthority('system:user:update')")
     public R<UserResponse> update(@PathVariable long id, @Valid @RequestBody UserUpdateRequest request) {
         return R.ok(userService.update(id, request));
@@ -78,6 +81,7 @@ public class SystemUserController {
      * @return 空数据响应
      */
     @DeleteMapping("/{id}")
+    @AuditLog(module = "用户", action = "删除")
     @PreAuthorize("hasAuthority('system:user:delete')")
     public R<Void> delete(@PathVariable long id) {
         userService.delete(id);
@@ -92,6 +96,7 @@ public class SystemUserController {
      * @return 空数据响应
      */
     @PutMapping("/{id}/password")
+    @AuditLog(module = "用户", action = "重置密码")
     @PreAuthorize("hasAuthority('system:user:update')")
     public R<Void> resetPassword(@PathVariable long id, @Valid @RequestBody PasswordResetRequest request) {
         userService.resetPassword(id, request.password());
@@ -106,6 +111,7 @@ public class SystemUserController {
      * @return 空数据响应
      */
     @PutMapping("/{id}/status")
+    @AuditLog(module = "用户", action = "启停")
     @PreAuthorize("hasAuthority('system:user:update')")
     public R<Void> updateStatus(@PathVariable long id, @Valid @RequestBody StatusRequest request) {
         userService.updateStatus(id, request.status());
@@ -120,6 +126,7 @@ public class SystemUserController {
      * @return 空数据响应
      */
     @PutMapping("/{id}/roles")
+    @AuditLog(module = "用户", action = "分配角色")
     @PreAuthorize("hasAuthority('system:user:update')")
     public R<Void> assignRoles(@PathVariable long id, @Valid @RequestBody RoleIdsRequest request) {
         userService.assignRoles(id, request.roleIds());

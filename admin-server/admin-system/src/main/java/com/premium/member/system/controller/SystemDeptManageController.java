@@ -3,6 +3,7 @@ package com.premium.member.system.controller;
 import java.util.List;
 
 import com.premium.member.common.api.R;
+import com.premium.member.framework.audit.AuditLog;
 import com.premium.member.system.dto.DeptNode;
 import com.premium.member.system.dto.DeptRequest;
 import com.premium.member.system.service.DeptService;
@@ -52,6 +53,7 @@ public class SystemDeptManageController {
      * @return 新部门
      */
     @PostMapping
+    @AuditLog(module = "部门", action = "新增")
     @PreAuthorize("hasAuthority('system:dept:create')")
     public R<DeptNode> create(@Valid @RequestBody DeptRequest request) {
         return R.ok(deptService.create(request));
@@ -65,6 +67,7 @@ public class SystemDeptManageController {
      * @return 更新后的部门
      */
     @PutMapping("/{id}")
+    @AuditLog(module = "部门", action = "编辑")
     @PreAuthorize("hasAuthority('system:dept:update')")
     public R<DeptNode> update(@PathVariable long id, @Valid @RequestBody DeptRequest request) {
         return R.ok(deptService.update(id, request));
@@ -77,6 +80,7 @@ public class SystemDeptManageController {
      * @return 空数据响应
      */
     @DeleteMapping("/{id}")
+    @AuditLog(module = "部门", action = "删除")
     @PreAuthorize("hasAuthority('system:dept:delete')")
     public R<Void> delete(@PathVariable long id) {
         deptService.delete(id);

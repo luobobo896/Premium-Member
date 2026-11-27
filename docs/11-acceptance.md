@@ -416,3 +416,30 @@ docs/screenshots/data-scope-self.png
 ```
 
 详细规则与迁移见 `docs/14-data-scope.md`。
+
+## 操作审计（item 12 阶段 3，2026-11-27）
+
+`sys_operation_log` + `@AuditLog` AOP 异步写入，登录成败与会员/用户/角色/
+菜单/部门增删改均已落库；参数中的密码替换为 `***`。
+
+真实记录：
+
+```text
+登录成功        success=1 password=***
+登录失败        success=0 error_code=INVALID_CREDENTIALS
+会员新增/编辑/删除  success=1
+重复角色码新增   success=0 error_code=ROLE_CODE_EXISTS
+self_manager GET /system/logs -> 403 FORBIDDEN
+admin GET /system/logs        -> total=8
+用户名过滤 self_manager       -> total=1
+模块过滤 认证                  -> total=4
+```
+
+截图：
+
+```text
+docs/screenshots/system-audit-list.png
+docs/screenshots/system-audit-filter.png
+```
+
+保留策略与限制见 `docs/15-audit.md`。

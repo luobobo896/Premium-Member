@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.premium.member.common.api.PageResult;
 import com.premium.member.common.api.R;
+import com.premium.member.framework.audit.AuditLog;
 import com.premium.member.system.dto.MenuIdsRequest;
 import com.premium.member.system.dto.PermissionIdsRequest;
 import com.premium.member.system.dto.PermissionResponse;
@@ -77,6 +78,7 @@ public class SystemRoleController {
      * @return 新角色
      */
     @PostMapping
+    @AuditLog(module = "角色", action = "新增")
     @PreAuthorize("hasAuthority('system:role:create')")
     public R<RoleResponse> create(@Valid @RequestBody RoleCreateRequest request) {
         return R.ok(roleService.create(request));
@@ -90,6 +92,7 @@ public class SystemRoleController {
      * @return 更新后的角色
      */
     @PutMapping("/{id}")
+    @AuditLog(module = "角色", action = "编辑")
     @PreAuthorize("hasAuthority('system:role:update')")
     public R<RoleResponse> update(@PathVariable long id, @Valid @RequestBody RoleUpdateRequest request) {
         return R.ok(roleService.update(id, request));
@@ -102,6 +105,7 @@ public class SystemRoleController {
      * @return 空数据响应
      */
     @DeleteMapping("/{id}")
+    @AuditLog(module = "角色", action = "删除")
     @PreAuthorize("hasAuthority('system:role:delete')")
     public R<Void> delete(@PathVariable long id) {
         roleService.delete(id);
@@ -128,6 +132,7 @@ public class SystemRoleController {
      * @return 空数据响应
      */
     @PutMapping("/{id}/menus")
+    @AuditLog(module = "角色", action = "分配菜单")
     @PreAuthorize("hasAuthority('system:role:update')")
     public R<Void> assignMenus(@PathVariable long id, @Valid @RequestBody MenuIdsRequest request) {
         roleService.assignMenus(id, request.menuIds());
@@ -154,6 +159,7 @@ public class SystemRoleController {
      * @return 空数据响应
      */
     @PutMapping("/{id}/permissions")
+    @AuditLog(module = "角色", action = "分配权限")
     @PreAuthorize("hasAuthority('system:role:update')")
     public R<Void> assignPermissions(@PathVariable long id, @Valid @RequestBody PermissionIdsRequest request) {
         roleService.assignPermissions(id, request.permissionIds());

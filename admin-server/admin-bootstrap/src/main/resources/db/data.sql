@@ -40,7 +40,8 @@ INSERT INTO sys_permission (id, code, name, type, description) VALUES
     (19, 'member:read', '会员详情', 'API', '查看会员详情'),
     (20, 'member:create', '创建会员', 'BUTTON', '创建会员'),
     (21, 'member:update', '编辑会员', 'BUTTON', '编辑会员'),
-    (22, 'member:delete', '删除会员', 'BUTTON', '删除会员')
+    (22, 'member:delete', '删除会员', 'BUTTON', '删除会员'),
+    (23, 'system:log:list', '操作日志', 'API', '查询操作日志')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, title, icon,
@@ -97,6 +98,8 @@ INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, titl
      NULL, 'system:user:update', 2, 1, 1, 0, 0, 0),
     (243, 24, 'SystemUserDelete', '', NULL, NULL, 'button', '删除用户',
      NULL, 'system:user:delete', 3, 1, 1, 0, 0, 0),
+    (25, 20, 'SystemLog', '/system/log', '/system/log/index', NULL, 'menu', '操作日志',
+     'carbon:document', 'system:log:list', 5, 1, 1, 0, 0, 0),
     (30, 0, 'About', '/about', '/_core/about/index', NULL, 'menu', '关于',
      'lucide:copyright', NULL, 9999, 1, 1, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;

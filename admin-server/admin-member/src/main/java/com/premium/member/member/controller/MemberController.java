@@ -2,6 +2,7 @@ package com.premium.member.member.controller;
 
 import com.premium.member.common.api.PageResult;
 import com.premium.member.common.api.R;
+import com.premium.member.framework.audit.AuditLog;
 import com.premium.member.member.dto.MemberCreateRequest;
 import com.premium.member.member.dto.MemberQuery;
 import com.premium.member.member.dto.MemberResponse;
@@ -59,6 +60,7 @@ public class MemberController {
      * @return 新会员
      */
     @PostMapping
+    @AuditLog(module = "会员", action = "新增")
     @PreAuthorize("hasAuthority('member:create')")
     public R<MemberResponse> create(@Valid @RequestBody MemberCreateRequest request) {
         return R.ok(memberService.create(request));
@@ -72,6 +74,7 @@ public class MemberController {
      * @return 更新后的会员
      */
     @PutMapping("/{id}")
+    @AuditLog(module = "会员", action = "编辑")
     @PreAuthorize("hasAuthority('member:update')")
     public R<MemberResponse> update(@PathVariable long id, @Valid @RequestBody MemberUpdateRequest request) {
         return R.ok(memberService.update(id, request));
@@ -84,6 +87,7 @@ public class MemberController {
      * @return 空数据响应
      */
     @DeleteMapping("/{id}")
+    @AuditLog(module = "会员", action = "删除")
     @PreAuthorize("hasAuthority('member:delete')")
     public R<Void> delete(@PathVariable long id) {
         memberService.delete(id);

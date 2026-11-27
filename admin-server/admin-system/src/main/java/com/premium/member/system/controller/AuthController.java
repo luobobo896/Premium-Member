@@ -3,6 +3,7 @@ package com.premium.member.system.controller;
 import java.util.List;
 
 import com.premium.member.common.api.R;
+import com.premium.member.framework.audit.AuditLog;
 import com.premium.member.framework.security.CookieFactory;
 import com.premium.member.framework.security.SecurityUtils;
 import com.premium.member.system.dto.CaptchaResponse;
@@ -44,6 +45,7 @@ public class AuthController {
      * @return 统一响应
      */
     @PostMapping("/login")
+    @AuditLog(module = "认证", action = "登录")
     public ResponseEntity<R<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResult result = authService.login(request);
         return ResponseEntity.ok()

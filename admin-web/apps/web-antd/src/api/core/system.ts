@@ -155,6 +155,30 @@ export namespace SystemApi {
     sort: number;
     status: number;
   }
+
+  export interface OperationLog {
+    action: string;
+    costMs: number;
+    createdAt: string;
+    errorCode: null | string;
+    id: number;
+    ip: string;
+    method: string;
+    module: string;
+    params: string;
+    path: string;
+    success: number;
+    userAgent: string;
+    userId: null | number;
+    username: string;
+  }
+
+  export interface OperationLogQuery extends PageQuery {
+    endTime?: string;
+    module?: string;
+    startTime?: string;
+    username?: string;
+  }
 }
 
 export async function getUsersApi(params: SystemApi.UserQuery) {
@@ -286,4 +310,11 @@ export async function updateDeptApi(
 
 export async function deleteDeptApi(id: number) {
   return requestClient.delete(`/system/depts/${id}`);
+}
+
+export async function getOperationLogsApi(params: SystemApi.OperationLogQuery) {
+  return requestClient.get<SystemApi.PageResult<SystemApi.OperationLog>>(
+    '/system/logs',
+    { params },
+  );
 }
