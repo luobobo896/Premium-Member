@@ -129,6 +129,37 @@ export interface ContentItem {
   publishAt: string;
 }
 
+export interface TicketReply {
+  senderType: string;
+  senderName: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface TicketInfo {
+  id: number;
+  ticketNo: string;
+  orderNo: string;
+  category: string;
+  title: string;
+  content: string;
+  status: string;
+  priority: string;
+  replyCount: number;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  replies?: TicketReply[] | null;
+}
+
+export interface TicketCreatePayload {
+  title: string;
+  content: string;
+  category: string;
+  orderNo?: string;
+  priority?: string;
+}
+
 interface ApiResponse<T> {
   code: number;
   data: T;
@@ -260,6 +291,18 @@ export function getContents(keys?: string[], locale = 'zh-CN'): Promise<ContentI
     search.push(`keys=${encodeURIComponent(keys.join(','))}`);
   }
   return request(`/c/contents?${search.join('&')}`, 'GET');
+}
+
+export function getTickets(): Promise<TicketInfo[]> {
+  return request('/c/tickets', 'GET');
+}
+
+export function getTicket(ticketNo: string): Promise<TicketInfo> {
+  return request(`/c/tickets/${encodeURIComponent(ticketNo)}`, 'GET');
+}
+
+export function createTicket(payload: TicketCreatePayload): Promise<TicketInfo> {
+  return request('/c/tickets', 'POST', payload);
 }
 
 export function uploadAiAsset(filePath: string): Promise<AiAsset> {

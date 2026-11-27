@@ -119,6 +119,37 @@ export interface ContentItem {
   publishAt: string;
 }
 
+export interface TicketReply {
+  senderType: string;
+  senderName: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface TicketInfo {
+  id: number;
+  ticketNo: string;
+  orderNo: string;
+  category: string;
+  title: string;
+  content: string;
+  status: string;
+  priority: string;
+  replyCount: number;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  replies?: TicketReply[] | null;
+}
+
+export interface TicketCreatePayload {
+  title: string;
+  content: string;
+  category: string;
+  orderNo?: string;
+  priority?: string;
+}
+
 export type AiType = 'DRESSUP' | 'PHOTO' | 'VIDEO';
 
 export interface AiTemplate {
@@ -364,4 +395,19 @@ export function getContents(keys?: string[], locale = 'zh-CN'): Promise<ContentI
   if (keys?.length) search.set('keys', keys.join(','));
   search.set('locale', locale);
   return request<ContentItem[]>(`/c/contents?${search.toString()}`);
+}
+
+export function getTickets(): Promise<TicketInfo[]> {
+  return request<TicketInfo[]>('/c/tickets');
+}
+
+export function getTicket(ticketNo: string): Promise<TicketInfo> {
+  return request<TicketInfo>(`/c/tickets/${encodeURIComponent(ticketNo)}`);
+}
+
+export function createTicket(payload: TicketCreatePayload): Promise<TicketInfo> {
+  return request<TicketInfo>('/c/tickets', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }

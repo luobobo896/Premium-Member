@@ -8,11 +8,14 @@ import OrderView from './views/OrderView.vue';
 import PayResultView from './views/PayResultView.vue';
 import PlanView from './views/PlanView.vue';
 import AiView from './views/AiView.vue';
+import TicketView from './views/TicketView.vue';
 import { getAccessToken } from './api';
 import type { OrderInfo } from './api';
 
 const loggedIn = ref(Boolean(getAccessToken()));
-const activeView = ref<'ai' | 'benefit' | 'member' | 'orders' | 'payResult' | 'plans'>('member');
+const activeView = ref<
+  'ai' | 'benefit' | 'member' | 'orders' | 'payResult' | 'plans' | 'tickets'
+>('member');
 const currentOrder = ref<OrderInfo | null>(null);
 
 function handleLoggedIn() {
@@ -69,6 +72,13 @@ function handleOrdered(order: OrderInfo) {
       >
         订单
       </button>
+      <button
+        :class="{ active: activeView === 'tickets' }"
+        type="button"
+        @click="activeView = 'tickets'"
+      >
+        工单
+      </button>
     </nav>
     <MemberView v-if="loggedIn && activeView === 'member'" @logout="handleLogout" />
     <BenefitView v-else-if="loggedIn && activeView === 'benefit'" @logout="handleLogout" />
@@ -82,6 +92,15 @@ function handleOrdered(order: OrderInfo) {
       @plans="activeView = 'plans'"
     />
     <OrderView v-else-if="loggedIn && activeView === 'orders'" @logout="handleLogout" />
+    <TicketView v-else-if="loggedIn && activeView === 'tickets'" @logout="handleLogout" />
     <LoginView v-else @logged-in="handleLoggedIn" />
   </main>
 </template>
+
+<style scoped>
+.view-switch button {
+  padding: 0 2px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+</style>

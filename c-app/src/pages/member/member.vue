@@ -110,6 +110,10 @@ function openAi(): void {
   uni.navigateTo({ url: '/pages/ai/ai' });
 }
 
+function openTickets(): void {
+  uni.navigateTo({ url: '/pages/ticket/ticket' });
+}
+
 onShow(() => {
   load();
   loadBanners();
@@ -184,6 +188,7 @@ onShow(() => {
       </view>
 
       <button class="secondary-button benefit-entry" @click="openBenefit">权益中心</button>
+      <button class="secondary-button benefit-entry" @click="openTickets">我的工单</button>
       <button class="secondary-button benefit-entry" @click="openAi">AI 创作</button>
       <button class="secondary-button logout" :loading="loggingOut" @click="signOut">
         {{ loggingOut ? '退出中' : '退出登录' }}

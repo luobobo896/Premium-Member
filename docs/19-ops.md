@@ -51,6 +51,11 @@ OPEN -> PROCESSING -> RESOLVED
 
 后台列表对 C 工单优先显示 `pm_member` 昵称/手机号；没有会员档案时回退到 `c_user`。
 
+### C 端页面
+
+- `c-h5`：顶部导航新增“工单”，页面提供我的工单列表、新建工单（分类/标题/问题描述/可选订单号）、详情（状态时间线、后台回复）和刷新进度。
+- `c-app`：会员中心新增“我的工单”入口，`pages/ticket/ticket` 复用同一套列表、新建和详情交互；H5 构建可运行。
+
 ## 内容配置
 
 支持的 `key`：`PLAN_COPY`、`BANNER`、`ANNOUNCEMENT`、`DOWNLOAD`、`CONTACT`、`AGREEMENT`。
@@ -129,6 +134,15 @@ C 查询 -> status=CLOSED，回复可见
 
 审计表可查到“受理 / 回复 / 改状态/备注”三条成功记录。
 
+浏览器闭环（c-h5 页面提交，后台 API 受理/回复）：
+
+```text
+c-h5 新建工单 -> T202611274CA52409，状态“待受理”
+后台受理 -> “处理中”，处理人 Administrator
+后台回复 "已核实支付记录，会员通道稍后自动生效，请 10 分钟后刷新会员中心。"
+c-h5 打开详情 -> 状态“处理中”，时间线推进到“处理中”，客服回复可见
+```
+
 ### 内容
 
 ```text
@@ -163,7 +177,7 @@ admin-server: mvn -q -DskipTests package 通过
 c-server:     mvn -q -DskipTests package 通过
 admin-web:    pnpm run build:antd 通过（11 tasks）
 c-h5:         npm run build 通过
-c-app:        npm run build:h5 通过
+c-app:        npm run type-check && npm run build:h5 通过
 ```
 
 `admin-web` 的 `vue-tsc` 仍有基线遗留错误（`views/ai`、`views/benefit`、`views/trade` 的表格插槽类型）；本次新增的 `views/tickets`、`views/content`、`views/stats` 无类型错误。
@@ -178,10 +192,15 @@ c-app:        npm run build:h5 通过
 - `docs/screenshots/ops-stats.png`
 - `docs/screenshots/ops-c-h5-plan-copy.png`
 - `docs/screenshots/ops-c-app-banner.png`
+- `docs/screenshots/ops-c-ticket-create.png`
+- `docs/screenshots/ops-c-ticket-list.png`
+- `docs/screenshots/ops-c-ticket-status.png`
+- `docs/screenshots/ops-c-ticket-reply.png`
+- `docs/screenshots/ops-c-ticket-app.png`
 
 ## 未验证项与风险
 
-- C 端工单按需求只交付 API，未新增 c-app/c-h5 工单页面。
+- c-app 只验证了 H5 构建与运行，未跑微信小程序/原生 App 端。
 - `stats:export` 的按钮级权限用 `v-access` 控制，服务端用 `@PreAuthorize`；未用受限角色在 UI 上逐按钮回归。
 - 来源筛选只造了 `H5` 订单数据；`APP/MOCK` 与真实支付渠道流量未压测。
 - 5 万行上限是防御性校验，按日聚合在正常日期区间远达不到；未做超大区间性能测试。

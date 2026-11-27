@@ -19,6 +19,12 @@
       }
     },
     {
+      "path": "pages/ticket/ticket",
+      "style": {
+        "navigationBarTitleText": "我的工单"
+      }
+    },
+    {
       "path": "pages/ai/ai",
       "style": {
         "navigationBarTitleText": "AI 创作"
