@@ -76,6 +76,41 @@ export interface BenefitClaimHistory {
   status: string;
 }
 
+export interface PlanInfo {
+  aiImageQuota: number;
+  aiVideoQuota: number;
+  benefitQuota: number;
+  code: string;
+  durationDays: number;
+  id: number;
+  name: string;
+  priceCents: number;
+  versionNo: number;
+}
+
+export interface OrderPeriod {
+  endAt: string;
+  id: number;
+  periodNo: string;
+  startAt: string;
+  status: string;
+}
+
+export interface OrderInfo {
+  amountCents: number;
+  channel: string;
+  createdAt: string;
+  id: number;
+  orderNo: string;
+  paidAt: string | null;
+  payMode: string | null;
+  period: OrderPeriod | null;
+  plan: PlanInfo | null;
+  remark: string;
+  source: string;
+  status: string;
+}
+
 interface ApiResponse<T> {
   code: number;
   data: T;
@@ -166,6 +201,32 @@ export function claimBenefit(sku: string): Promise<BenefitClaimResult> {
 
 export function getBenefitClaims(): Promise<BenefitClaimHistory[]> {
   return request<BenefitClaimHistory[]>('/c/benefits/claims');
+}
+
+export function getPlans(): Promise<PlanInfo[]> {
+  return request<PlanInfo[]>('/c/plans');
+}
+
+export function createOrder(planVersionId: number): Promise<OrderInfo> {
+  return request<OrderInfo>('/c/orders', {
+    method: 'POST',
+    body: JSON.stringify({ planVersionId, source: 'H5' }),
+  });
+}
+
+export function mockPay(orderNo: string): Promise<OrderInfo> {
+  return request<OrderInfo>('/c/payments/mock/notify', {
+    method: 'POST',
+    body: JSON.stringify({ orderNo }),
+  });
+}
+
+export function getOrders(): Promise<OrderInfo[]> {
+  return request<OrderInfo[]>('/c/orders');
+}
+
+export function getOrder(orderNo: string): Promise<OrderInfo> {
+  return request<OrderInfo>(`/c/orders/${encodeURIComponent(orderNo)}`);
 }
 
 export async function logout(): Promise<void> {

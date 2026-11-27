@@ -328,6 +328,54 @@ input {
   font-size: 12px;
 }
 
+.plan-card {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  background: var(--c-surface);
+  color: var(--c-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan-card.selected {
+  border-color: var(--c-accent);
+  background: var(--c-accent-soft);
+}
+
+.plan-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plan-price {
+  color: var(--c-accent);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.plan-rules {
+  margin: 18px 0 0;
+  padding: 12px 16px 12px 28px;
+  border-radius: 10px;
+  background: #f7f5f0;
+  color: var(--c-muted);
+  font-size: 13px;
+}
+
+.plan-rules li + li {
+  margin-top: 6px;
+}
+
+.plan-agree {
+  margin-top: 16px;
+  font-size: 13px;
+}
+
 .van-button--plain.van-button--primary {
   background: transparent;
 }
