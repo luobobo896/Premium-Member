@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -44,14 +45,16 @@ public class UserService {
     private final SysDeptMapper deptMapper;
     private final PasswordEncoder passwordEncoder;
     private final PermissionCache permissionCache;
+    private final DataScopeService dataScopeService;
 
     public UserService(SysUserMapper userMapper, SysRoleMapper roleMapper, SysDeptMapper deptMapper,
-            PasswordEncoder passwordEncoder, PermissionCache permissionCache) {
+            PasswordEncoder passwordEncoder, PermissionCache permissionCache, DataScopeService dataScopeService) {
         this.userMapper = userMapper;
         this.roleMapper = roleMapper;
         this.deptMapper = deptMapper;
         this.passwordEncoder = passwordEncoder;
         this.permissionCache = permissionCache;
+        this.dataScopeService = dataScopeService;
     }
 
     /**
@@ -63,7 +66,7 @@ public class UserService {
     public PageResult<UserResponse> page(UserQuery query) {
         Page<SysUser> page = new Page<>(query.getPage(), query.getPageSize());
         page.setOptimizeCountSql(false);
-        IPage<SysUser> result = userMapper.selectPageByQuery(page, query);
+        IPage<SysUser> result = userMapper.selectPageByQuery(page, query, dataScopeService.visibleUserIds());
         Map<Long, String> deptNames = deptMapper.selectAll().stream()
                 .collect(Collectors.toMap(SysDept::getId, SysDept::getName));
         List<UserResponse> items = result.getRecords().stream()
@@ -116,7 +119,7 @@ public class UserService {
      */
     @Transactional
     public UserResponse update(long id, UserUpdateRequest request) {
-        SysUser user = requireUser(id);
+        SysUser user = requireVisibleUser(id);
         requireDept(request.deptId());
         int status = request.status() == null ? user.getStatus() : request.status();
         if (status == 0) {
@@ -142,7 +145,7 @@ public class UserService {
      */
     @Transactional
     public void delete(long id) {
-        SysUser user = requireUser(id);
+        SysUser user = requireVisibleUser(id);
         if (isBuiltinAdmin(user)) {
             throw new BusinessException(ErrorCode.USER_PROTECTED, "内置 admin 用户不能删除");
         }
@@ -162,7 +165,7 @@ public class UserService {
      */
     @Transactional
     public void resetPassword(long id, String password) {
-        SysUser user = requireUser(id);
+        SysUser user = requireVisibleUser(id);
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setUpdatedAt(OffsetDateTime.now());
         if (userMapper.updateById(user) != 1) {
@@ -178,7 +181,7 @@ public class UserService {
      */
     @Transactional
     public void updateStatus(long id, int status) {
-        SysUser user = requireUser(id);
+        SysUser user = requireVisibleUser(id);
         if (status == 0) {
             ensureDisableAllowed(user);
         }
@@ -197,7 +200,7 @@ public class UserService {
      */
     @Transactional
     public void assignRoles(long id, List<Long> roleIds) {
-        SysUser user = requireUser(id);
+        SysUser user = requireVisibleUser(id);
         if (isBuiltinAdmin(user)) {
             throw new BusinessException(ErrorCode.USER_PROTECTED, "内置 admin 角色不能修改");
         }
@@ -225,6 +228,15 @@ public class UserService {
     private SysUser requireUser(long id) {
         SysUser user = userMapper.selectById(id);
         if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        return user;
+    }
+
+    private SysUser requireVisibleUser(long id) {
+        SysUser user = requireUser(id);
+        Set<Long> visibleUserIds = dataScopeService.visibleUserIds();
+        if (visibleUserIds != null && !visibleUserIds.contains(id)) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         return user;

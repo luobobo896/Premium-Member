@@ -1,5 +1,7 @@
 package com.premium.member.member.mapper;
 
+import java.util.Set;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -22,8 +24,15 @@ public interface MemberMapper extends BaseMapper<PmMember> {
      * @param query 查询条件
      * @return 分页结果
      */
-    default IPage<PmMember> selectPageByQuery(Page<PmMember> page, MemberQuery query) {
+    default IPage<PmMember> selectPageByQuery(Page<PmMember> page, MemberQuery query, Set<Long> visibleUserIds) {
         LambdaQueryWrapper<PmMember> wrapper = Wrappers.lambdaQuery();
+        if (visibleUserIds != null) {
+            if (visibleUserIds.isEmpty()) {
+                wrapper.eq(PmMember::getId, -1L);
+            } else {
+                wrapper.in(PmMember::getOwnerId, visibleUserIds);
+            }
+        }
         if (StringUtils.hasText(query.getKeyword())) {
             String keyword = query.getKeyword().trim();
             wrapper.and(item -> item

@@ -86,6 +86,7 @@ public class RoleService {
         SysRole role = new SysRole();
         role.setCode(code);
         role.setName(request.name().trim());
+        role.setDataScope(dataScopeOrDefault(request.dataScope()));
         role.setStatus(request.status() == null ? 1 : request.status());
         role.setSort(request.sort() == null ? 0 : request.sort());
         role.setRemark(valueOrEmpty(request.remark()));
@@ -120,6 +121,9 @@ public class RoleService {
         }
         role.setCode(code);
         role.setName(request.name().trim());
+        role.setDataScope(SUPER_ADMIN.equals(role.getCode())
+                ? "ALL"
+                : dataScopeOrDefault(request.dataScope()));
         role.setStatus(request.status() == null ? role.getStatus() : request.status());
         role.setSort(request.sort() == null ? role.getSort() : request.sort());
         role.setRemark(valueOrEmpty(request.remark()));
@@ -252,5 +256,9 @@ public class RoleService {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String dataScopeOrDefault(String dataScope) {
+        return dataScope == null || dataScope.isBlank() ? "SELF" : dataScope;
     }
 }

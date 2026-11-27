@@ -389,3 +389,30 @@ docs/screenshots/member-edit.png
 docs/screenshots/member-detail.png
 docs/screenshots/member-delete-confirm.png
 ```
+
+## 数据权限（item 12 阶段 2，2026-11-27）
+
+后端 `sys_role.data_scope` + `DataScopeService`，前端角色表单增加「数据范围」下拉；
+`/system/users` 与 `/members` 按当前用户最严格角色范围过滤。
+
+真实接口对比：
+
+```text
+admin        members=4  users=5
+dept_manager members=2  users=3
+self_manager members=1  users=1
+self_manager GET /members/2 -> 404 MEMBER_NOT_FOUND
+```
+
+`DEPT_AND_CHILD` 用临时子部门验证：`DEPT` 时 3 用户/2 会员，切到
+`DEPT_AND_CHILD` 后 4 用户/3 会员，改回后恢复。临时数据已清理。
+
+截图：
+
+```text
+docs/screenshots/system-role-datascope.png
+docs/screenshots/data-scope-dept.png
+docs/screenshots/data-scope-self.png
+```
+
+详细规则与迁移见 `docs/14-data-scope.md`。

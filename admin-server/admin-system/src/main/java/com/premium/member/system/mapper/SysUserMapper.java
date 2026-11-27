@@ -43,8 +43,15 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      * @param query 查询条件
      * @return 分页结果
      */
-    default IPage<SysUser> selectPageByQuery(Page<SysUser> page, UserQuery query) {
+    default IPage<SysUser> selectPageByQuery(Page<SysUser> page, UserQuery query, java.util.Set<Long> visibleUserIds) {
         var wrapper = Wrappers.lambdaQuery(SysUser.class);
+        if (visibleUserIds != null) {
+            if (visibleUserIds.isEmpty()) {
+                wrapper.eq(SysUser::getId, -1L);
+            } else {
+                wrapper.in(SysUser::getId, visibleUserIds);
+            }
+        }
         if (StringUtils.hasText(query.getUsername())) {
             wrapper.like(SysUser::getUsername, query.getUsername().trim());
         }
@@ -60,6 +67,21 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
         wrapper.orderByAsc(SysUser::getId);
         return selectPage(page, wrapper);
     }
+
+    /**
+     * 查询指定部门下的用户 ID。
+     *
+     * @param deptIds 部门 ID 集合，调用方保证非空
+     * @return 用户 ID 列表
+     */
+    @Select("""
+            <script>
+            SELECT id FROM sys_user
+            WHERE deleted = 0 AND dept_id IN
+            <foreach collection="deptIds" item="deptId" open="(" separator="," close=")">#{deptId}</foreach>
+            </script>
+            """)
+    List<Long> selectIdsByDeptIds(@Param("deptIds") List<Long> deptIds);
 
     /**
      * 判断登录名是否已存在。

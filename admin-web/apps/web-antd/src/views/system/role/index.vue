@@ -50,6 +50,12 @@ const statusOptions = [
   { label: '启用', value: 1 },
   { label: '停用', value: 0 },
 ];
+const dataScopeOptions = [
+  { label: '全部数据', value: 'ALL' },
+  { label: '本部门及下级部门', value: 'DEPT_AND_CHILD' },
+  { label: '本部门', value: 'DEPT' },
+  { label: '仅本人', value: 'SELF' },
+];
 
 function toTreeData(nodes: SystemApi.Menu[]): any[] {
   return nodes.map((node) => ({
@@ -149,6 +155,16 @@ function buildSchema(role: SystemApi.Role | null): VbenFormSchema[] {
       rules: 'required',
     },
     {
+      fieldName: 'dataScope',
+      label: '数据范围',
+      component: 'Select',
+      rules: 'selectRequired',
+      componentProps: {
+        disabled: role?.code === 'super_admin',
+        options: dataScopeOptions,
+      },
+    },
+    {
       fieldName: 'status',
       label: '状态',
       component: 'Select',
@@ -184,7 +200,7 @@ async function openCreate() {
   formApi.setState({ schema: buildSchema(null) });
   await nextTick();
   await formApi.resetForm();
-  await formApi.setValues({ sort: 0, status: 1 });
+  await formApi.setValues({ dataScope: 'SELF', sort: 0, status: 1 });
 }
 
 async function openEdit(row: SystemApi.Role) {
@@ -204,6 +220,7 @@ async function save() {
   const values = await formApi.getValues();
   const payload = {
     code: values.code,
+    dataScope: values.dataScope ?? 'SELF',
     name: values.name,
     remark: values.remark ?? '',
     sort: values.sort ?? 0,

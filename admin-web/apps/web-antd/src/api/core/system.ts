@@ -56,6 +56,7 @@ export namespace SystemApi {
   export interface Role {
     code: string;
     createdAt: string;
+    dataScope: string;
     id: number;
     name: string;
     remark: string;
@@ -72,6 +73,7 @@ export namespace SystemApi {
 
   export interface RoleCreate {
     code: string;
+    dataScope: string;
     name: string;
     remark?: string;
     sort: number;

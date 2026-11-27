@@ -34,6 +34,20 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
     List<String> selectCodesByUserId(@Param("userId") long userId);
 
     /**
+     * 查询用户启用角色的数据范围。
+     *
+     * @param userId 用户 ID
+     * @return 数据范围列表
+     */
+    @Select("""
+            SELECT DISTINCT r.data_scope
+            FROM sys_role r
+            JOIN sys_user_role ur ON ur.role_id = r.id
+            WHERE ur.user_id = #{userId} AND r.status = 1 AND r.deleted = 0
+            """)
+    List<String> selectDataScopesByUserId(@Param("userId") long userId);
+
+    /**
      * 按管理端条件分页查询角色。
      *
      * @param page  分页参数

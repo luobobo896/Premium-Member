@@ -26,6 +26,9 @@ public class PmMember {
     /** 登录名。 */
     private String username;
 
+    /** 归属用户 ID，数据权限按此过滤。 */
+    private Long ownerId;
+
     /** 昵称。 */
     private String nickname;
 

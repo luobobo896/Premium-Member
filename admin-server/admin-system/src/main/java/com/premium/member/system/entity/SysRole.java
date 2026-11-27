@@ -25,6 +25,9 @@ public class SysRole {
     /** 角色名称。 */
     private String name;
 
+    /** 数据范围：ALL/DEPT_AND_CHILD/DEPT/SELF。 */
+    private String dataScope;
+
     /** 状态：1 启用，0 停用。 */
     private Integer status;
 

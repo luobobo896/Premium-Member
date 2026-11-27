@@ -10,6 +10,7 @@ import com.premium.member.system.entity.SysRole;
  * @param id        角色 ID
  * @param code      角色码
  * @param name      角色名
+ * @param dataScope 数据范围
  * @param status    状态：1 启用，0 停用
  * @param sort      排序
  * @param remark    备注
@@ -20,6 +21,7 @@ public record RoleResponse(
         Long id,
         String code,
         String name,
+        String dataScope,
         Integer status,
         Integer sort,
         String remark,
@@ -31,6 +33,7 @@ public record RoleResponse(
                 role.getId(),
                 role.getCode(),
                 role.getName(),
+                role.getDataScope(),
                 role.getStatus(),
                 role.getSort(),
                 role.getRemark(),
