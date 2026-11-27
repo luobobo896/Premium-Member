@@ -1,0 +1,12 @@
+app:
+  jwt:
+    access-secret: test-admin-access-secret-0123456789abcdef
+    refresh-secret: test-admin-refresh-secret-0123456789abcdef
+  cache-prefix: pm:test
+  benefit:
+    card-secret: test-benefit-card-secret
+
+logging:
+  level:
+    root: warn
+    com.premium.member: info

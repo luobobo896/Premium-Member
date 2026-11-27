@@ -26,6 +26,23 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: mvn -B package
 
+  backend-it:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        module: [admin-server, c-server]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Integration tests ${{ matrix.module }}
+        working-directory: ${{ matrix.module }}
+        run: mvn -B verify
+
   admin-web:
     runs-on: ubuntu-latest
     steps:
@@ -87,3 +104,97 @@ jobs:
           push: false
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: e2e/pnpm-lock.yaml
+      - name: Start PostgreSQL and Redis
+        run: docker compose -f deploy/docker-compose.yml up -d --wait
+      - name: Build backend jars
+        run: |
+          mvn -B -q -f admin-server/pom.xml -pl admin-bootstrap -am -DskipTests package
+          mvn -B -q -f c-server/pom.xml -pl c-bootstrap -am -DskipTests package
+      - name: Start admin and c servers
+        run: |
+          nohup java -jar admin-server/admin-bootstrap/target/admin-bootstrap-0.1.0.jar \
+            > /tmp/admin-server.log 2>&1 &
+          nohup java -jar c-server/c-bootstrap/target/c-bootstrap-0.1.0.jar \
+            > /tmp/c-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            admin=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5320/api/health || true)
+            cend=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8081/health || true)
+            if [ "$admin" = 200 ] && [ "$cend" = 200 ]; then exit 0; fi
+            sleep 2
+          done
+          echo "admin-server log:"; tail -80 /tmp/admin-server.log
+          echo "c-server log:"; tail -80 /tmp/c-server.log
+          exit 1
+        env:
+          SPRING_PROFILES_ACTIVE: dev
+          DB_HOST: 127.0.0.1
+          DB_PORT: "15432"
+          DB_NAME: premium_member
+          DB_USER: premium_member
+          DB_PASSWORD: premium_member_dev_only
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: "16379"
+          REDIS_PASSWORD: premium_member_dev_only
+          JWT_ACCESS_SECRET: ci-admin-access-secret-0123456789abcdef
+          JWT_REFRESH_SECRET: ci-admin-refresh-secret-0123456789abcdef
+          C_JWT_ACCESS_SECRET: ci-c-access-secret-0123456789abcdef
+          C_JWT_REFRESH_SECRET: ci-c-refresh-secret-0123456789abcdef
+          BENEFIT_CARD_SECRET: ci-benefit-card-secret
+          COOKIE_SECURE: "false"
+          C_COOKIE_SECURE: "false"
+          CORS_ALLOWED_ORIGINS: http://127.0.0.1:5174
+          C_CORS_ALLOWED_ORIGINS: http://127.0.0.1:5174
+          SQL_INIT_MODE: always
+          AI_PROVIDER: mock
+      - name: Start c-h5 dev server
+        working-directory: c-h5
+        run: |
+          npm ci
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/c-h5.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5174/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/c-h5.log
+          exit 1
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Run Playwright smoke
+        working-directory: e2e
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5174
+          E2E_C_API_BASE: http://127.0.0.1:8081
+          E2E_ADMIN_API_BASE: http://127.0.0.1:5320/api
+        run: pnpm test
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7

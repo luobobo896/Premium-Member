@@ -1,0 +1,19 @@
+spring:
+  sql:
+    init:
+      mode: never
+
+app:
+  jwt:
+    access-secret: test-c-access-secret-0123456789abcdef
+    refresh-secret: test-c-refresh-secret-0123456789abcdef
+  benefit:
+    card-secret: test-benefit-card-secret
+  ai:
+    provider: mock
+    storage-dir: target/ai-test
+
+logging:
+  level:
+    root: warn
+    com.premium.member: info

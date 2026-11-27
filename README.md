@@ -58,6 +58,7 @@ jenv exec java -jar c-bootstrap/target/c-bootstrap-0.1.0.jar
 - 版本与兼容性：`docs/01-versions.md`
 - 架构与目录：`docs/02-architecture.md`
 - 配置说明：`docs/03-configuration.md`
+- 自动化测试：`docs/24-testing.md`
 - 数据库：`docs/04-database.md`
 - 认证与权限：`docs/05-auth.md`
 - Redis：`docs/06-redis.md`
