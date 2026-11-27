@@ -183,12 +183,42 @@ userinfo_after_logout=401（未携带 Authorization 的 logout 也能使旧 acce
 
 登出同时撤销 refresh 白名单并把当前 access token 加入 Redis 黑名单。
 
+## admin-web 浏览器联调（2026-11-27）
+
+环境：vben dev `http://127.0.0.1:5666`，admin-server `http://127.0.0.1:5320/api`，后端启动参数 `JWT_ACCESS_TTL=60s`。
+
+```text
+login admin/Admin@123456 -> http://127.0.0.1:5666/analytics
+菜单：仪表盘 / 会员管理 / 系统管理 / 关于
+/members        会员列表 - Premium Member Admin
+/workspace      工作台 - Premium Member Admin
+/system/menu    菜单管理 - Premium Member Admin
+/system/dept    部门管理 - Premium Member Admin
+/system/role    角色管理 - Premium Member Admin
+/system/user    用户管理 - Premium Member Admin
+/about          关于 - Premium Member Admin
+```
+
+以上 8 个菜单路由逐个访问均为真实页面或占位页，没有 404。
+
+会员列表分页（`pageSize=2`）：
+
+```text
+GET /api/members?page=1&pageSize=2  200  首页 2 条，total=3
+GET /api/members?page=2&pageSize=2  401  access token 已过期
+POST /api/auth/refresh              200
+GET /api/members?page=2&pageSize=2  200  第 2 页出现 M202611270001 张三
+```
+
+刷新后 access token 已替换。退出登录后回到 `/auth/login`，本地 access 状态为 `accessToken: null`；登出前保存的 access token 再请求 `/api/members` 返回 401 `UNAUTHORIZED`。
+
+截图：`docs/screenshots/01-login.png`、`02-home.png`、`03-members-page2-after-refresh.png`、`04-members-page1.png`、`05-placeholder-system-user.png`、`06-logged-out.png`。
+
 ## 未实测项与风险
 
-1. admin-web 只做了生产构建，没有用浏览器完整走一次登录页交互；接口契约和 SPA 构建均通过，浏览器端仍建议人工点一遍。
-2. admin-web 基座没有会员/系统管理页面，种子菜单指向的 `/member/list/index`、`/system/menu/index` 等组件在基座中不存在，点击会落到 not-found。需要前端补页面，后端菜单结构不需要改。
-3. vben 默认 `accessMode=frontend`、`enableRefreshToken=false`，不改配置就不会调用 `/menu/all`，也不会自动刷新。
-4. 当前没有角色/权限写接口，权限缓存 10 分钟内可能滞后；新增角色编辑时必须调用 `PermissionCache.evict(userId)`。
-5. 没有登录失败锁定、限流和 refresh token 旋转；生产接入网关限流或在后续迭代补充。
-6. 生产跨域 Cookie 必须 HTTPS + `Secure` + `SameSite=None`；当前 dev 为 HTTP + Lax。
-7. c-server、c-app、c-h5 按指示冻结，只验证了骨架启动/构建，没有业务功能。
+1. 系统管理 4 个菜单当前是占位页，只保证菜单结构完整、点击不 404，没有 CRUD 交互。
+2. 会员列表只读分页，新增/编辑/删除按钮未接入页面；后端接口已具备。
+3. 当前没有角色/权限写接口，权限缓存 10 分钟内可能滞后；新增角色编辑时必须调用 `PermissionCache.evict(userId)`。
+4. 没有登录失败锁定、限流和 refresh token 旋转；生产接入网关限流或在后续迭代补充。
+5. 生产跨域 Cookie 必须 HTTPS + `Secure` + `SameSite=None`；当前 dev 为 HTTP + Lax。
+6. c-server、c-app、c-h5 按指示冻结，只验证了骨架启动/构建，没有业务功能。

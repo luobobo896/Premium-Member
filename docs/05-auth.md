@@ -111,19 +111,19 @@ Set-Cookie: jwt=<refresh-token>; Path=/api; HttpOnly; SameSite=Lax
 3. **refresh 失败状态**：vben mock 刷新失败返回 HTTP 403；后端沿用 403 + `REFRESH_TOKEN_INVALID`。
 4. **密码错误状态**：vben mock 返回 HTTP 403；后端沿用 403 + `INVALID_CREDENTIALS`，不返回 401，避免触发前端刷新流程。
 5. **`/user/info` 类型冲突**：vben 的 `UserInfo` TypeScript 类型要求 `userId/avatar/desc/token`，但 mock 运行时代码返回 `id/realName/roles/username/homePath`。后端同时返回 `userId`（字符串）和 `id`（数字），并补齐 `avatar/desc/homePath/roles`；不返回 `token`，因为运行时没有消费者。
-6. **前端默认权限模式**：vben 默认 `app.accessMode: 'frontend'`，默认 `enableRefreshToken: false`。要用后端菜单和自动刷新，需在 `admin-web/apps/web-antd/src/preferences.ts` 设置：
+6. **前端权限模式**：`admin-web/apps/web-antd/src/preferences.ts` 从 `VITE_ACCESS_MODE` 读取权限模式，`.env.development` / `.env.production` 均设为 `backend`；同时固定 `enableRefreshToken: true`。无需再手改源码：
 
 ```ts
 app: {
-  accessMode: 'backend',
+  accessMode: import.meta.env.VITE_ACCESS_MODE,
   enableRefreshToken: true,
 }
 ```
 
-7. **开发代理**：`admin-web/apps/web-antd/vite.config.ts` 把 `/api` 重写到 `http://localhost:5320/api`。后端端口 `5320`、context-path `/api`，无需改前端代理。
-8. **菜单组件路径**：种子菜单里的 `/member/list/index`、`/system/menu/index` 等页面尚未在 admin-web 基座中实现；当前基座只保留登录、仪表盘、关于等页面。后端返回的路由结构正确，但点击未实现菜单会落到 vben 的 not-found 页面。这是前端页面缺口，不是接口错误。
+7. **开发代理**：`admin-web/apps/web-antd/vite.config.ts` 把 `/api` 重写到 `http://127.0.0.1:5320/api`，浏览器侧基地址仍为 `/api`。Nitro mock 已在 `.env.development` 关闭。
+8. **菜单组件路径**：种子菜单的组件路径均已在 admin-web 落地：`/member/list/index` 是真实会员列表，`/system/menu|dept|role|user/index` 是最小占位页，保留后端菜单结构且不再 404。
 9. **Cookie 时长**：vben mock 的 `jwt` Cookie `maxAge` 是 24 小时，但 refresh JWT 是 30 天；后端统一为 30 天，避免 Cookie 先于 token 失效。
-10. **验证码**：vben 登录页使用前端 `SliderCaptcha`，不调用服务端验证码。后端提供 `/auth/captcha` 并在 `LoginRequest` 中支持可选 `captchaId/captchaCode`；不传时不强制，保持 vben 登录可用。
+10. **验证码**：后端提供 `/auth/captcha` 并在 `LoginRequest` 中支持可选 `captchaId/captchaCode`；不传时不强制。admin-web 登录页已移除上游 mock 的滑块和账号下拉，只保留真实用户名/密码表单。
 
 ## 安全约束
 

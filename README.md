@@ -41,7 +41,7 @@ pnpm install
 pnpm dev:antd
 ```
 
-预期：管理后台在 `http://127.0.0.1:5666`，`/api` 代理到 `127.0.0.1:5320`。
+预期：管理后台在 `http://127.0.0.1:5666`，`/api` 代理到 `127.0.0.1:5320/api`。已默认 `VITE_ACCESS_MODE=backend`、关闭 Nitro mock，登录账号 `admin / Admin@123456`。
 
 ```bash
 cd c-server

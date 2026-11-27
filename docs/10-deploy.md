@@ -70,15 +70,48 @@ pnpm install
 pnpm dev:antd
 ```
 
-访问 `http://127.0.0.1:5666`。开发代理把 `/api` 转发到 `http://localhost:5320/api`。
+访问 `http://127.0.0.1:5666`，用 `admin / Admin@123456` 登录。
 
-默认 vben 配置是前端权限模式且关闭自动刷新。要用后端菜单与刷新，按 `05-auth.md` 修改：
+关键配置已提交在 `admin-web/apps/web-antd/`：
 
-```ts
-app: { accessMode: 'backend', enableRefreshToken: true }
+| 文件 | 配置 | 作用 |
+|---|---|---|
+| `.env.development` | `VITE_NITRO_MOCK=false` | 关闭上游 mock，全部请求走后端 |
+| `.env.development` | `VITE_ACCESS_MODE=backend` | 动态菜单来自 `GET /api/menu/all` |
+| `.env.development` | `VITE_GLOB_API_URL=/api` | 浏览器侧 API 基地址 |
+| `vite.config.ts` | target `http://127.0.0.1:5320/api` | 开发代理转发 |
+| `src/preferences.ts` | `enableRefreshToken: true` | access token 过期时自动刷新并重放 |
+
+端口与路径：
+
+- vben dev：`5666`
+- admin-server：`5320`，context-path `/api`
+- 浏览器请求 `http://127.0.0.1:5666/api/**` 经 Vite 代理到 `http://127.0.0.1:5320/api/**`
+- refresh token 只存在 `jwt` HttpOnly Cookie 中，路径 `/api`，前端 JS 不读取
+
+登录闭环：
+
+1. `POST /api/auth/login` 返回 `accessToken` 并写 refresh Cookie。
+2. 前端带 `Authorization: Bearer <accessToken>` 请求 `/api/user/info`、`/api/auth/codes`、`/api/menu/all`。
+3. access token 过期后接口返回 401，前端 `POST /api/auth/refresh`（仅 Cookie）换新 access token，并自动重放原请求。
+4. 退出登录调用 `POST /api/auth/logout`，清 Cookie 和本地状态，回到登录页；旧 access token 再访问返回 401。
+
+刷新实测方法：启动后端时设 `JWT_ACCESS_TTL=60s`，登录后等 token 过期，再点会员列表第 2 页。浏览器 Network 应依次出现：
+
+```text
+GET /api/members?page=2&pageSize=2   401
+POST /api/auth/refresh              200
+GET /api/members?page=2&pageSize=2   200
 ```
 
 2026-11-27 实测 `pnpm run build:antd` 成功：11 个任务全部通过，生产包 `admin-web/apps/web-antd/dist`。
+
+常见问题：
+
+- 登录后立刻回登录页：确认后端已在 `5320` 启动、`/api` 代理 target 正确，且数据库种子已执行。
+- `/menu/all` 返回 401：先确认请求头有 `Authorization: Bearer`；若刚过期，检查 browser 是否有 `jwt` Cookie（Path 必须是 `/api`）。
+- 直连 `http://127.0.0.1:5320/api` 而不是走代理时，后端必须允许来源 `http://127.0.0.1:5666`（默认已允许），且跨域请求要带 `withCredentials`。
+- 菜单点击 404：检查后端菜单 `component` 与 `src/views` 下文件路径是否一致；当前 8 个菜单组件路径均已覆盖。
 
 ## 5. c-app / c-h5
 

@@ -18,6 +18,10 @@ interface WebAntdPreferencesExtension {
 export const overridesPreferences = defineOverridesPreferences({
   // overrides
   app: {
+    accessMode:
+      (import.meta.env.VITE_ACCESS_MODE as 'backend' | 'frontend' | 'mixed') ??
+      'backend',
+    enableRefreshToken: true,
     name: import.meta.env.VITE_APP_TITLE,
   },
 });
