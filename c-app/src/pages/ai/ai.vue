@@ -76,20 +76,27 @@ const videoDuration = computed(() => {
 const aspectRatio = computed(() =>
   typeof taskParams.value.aspectRatio === 'string' ? taskParams.value.aspectRatio : '3:4',
 );
+const taskPrice = computed(() => {
+  const type = selected.value?.type ?? activeType.value;
+  if (type === 'VIDEO') return quota.value?.prices.video ?? 500;
+  if (type === 'DRESSUP') return quota.value?.prices.dressup ?? 100;
+  return quota.value?.prices.photo ?? 100;
+});
+const insufficient = computed(
+  () => loggedIn.value && Boolean(quota.value) && quota.value!.balancePoints < taskPrice.value,
+);
 const consumeText = computed(() => {
-  const kind = activeType.value === 'VIDEO' ? '视频' : '图片';
-  if (!loggedIn.value) return '登录后生成，会员额度按周期发放';
-  if (!quota.value?.period) return `本次消耗 1 次${kind}额度`;
-  const remaining =
-    activeType.value === 'VIDEO' ? quota.value.video.remaining : quota.value.image.remaining;
-  return `本次消耗 1 次${kind}额度 · 剩余 ${remaining} 次`;
+  if (!loggedIn.value) return '登录后按积分生成';
+  if (!quota.value?.subscription) return '当前没有订阅，开通会员后获得积分';
+  return `本次消耗 ${taskPrice.value} 积分 · 剩余 ${quota.value.balancePoints}`;
 });
 const ctaText = computed(() => {
   if (!loggedIn.value) return '登录后生成';
+  if (insufficient.value) return '积分不足，去开通会员';
   return submitting.value ? '提交中' : '开始生成';
 });
 const ctaDisabled = computed(
-  () => submitting.value,
+  () => submitting.value || insufficient.value,
 );
 
 function coverLabel(template: AiTemplate): string {
@@ -115,6 +122,10 @@ function statusClass(status: string): string {
 function goLogin(): void {
   uni.setStorageSync('pm_ai_type', activeType.value);
   requireLogin('/pages/ai/ai');
+}
+
+function openPlans(): void {
+  uni.reLaunch({ url: '/pages/index/index' });
 }
 
 function handleError(ex: unknown) {
@@ -201,6 +212,10 @@ async function submit() {
   }
   if (!selected.value) {
     error.value = '请选择一个模板';
+    return;
+  }
+  if (insufficient.value) {
+    error.value = '积分不足，去开通会员';
     return;
   }
   if (!inputPreview.value) {
@@ -338,6 +353,7 @@ onUnload(() => {
               :tone="coverTone(template.type)"
               :height="110"
             />
+            <text class="tpl-price">{{ template.pointPrice }} 积分</text>
             <view v-if="selected?.id === template.id" class="check">
               <AppIcon name="check" :size="14" />
             </view>
@@ -376,6 +392,9 @@ onUnload(() => {
 
       <button class="pm-btn pm-btn--primary generate" :disabled="ctaDisabled" @click="submit">
         {{ ctaText }}
+      </button>
+      <button v-if="insufficient" class="pm-btn pm-btn--secondary plan-link" @click="openPlans">
+        去开通会员
       </button>
 
       <view class="works-link pm-tap" @click="toggleWorks">
@@ -569,6 +588,18 @@ onUnload(() => {
   color: var(--accent-deep);
 }
 
+.tpl-price {
+  position: absolute;
+  right: var(--space-1);
+  bottom: 22px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(5, 10, 9, 0.72);
+  color: var(--accent);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
 .params {
   display: flex;
   gap: var(--space-4);
@@ -600,6 +631,10 @@ onUnload(() => {
 
 .generate {
   margin-top: var(--space-4);
+}
+
+.plan-link {
+  margin-top: var(--space-2);
 }
 
 .works-link {

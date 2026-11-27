@@ -93,6 +93,7 @@ export interface PlanInfo {
   benefitQuota: number;
   durationDays: number;
   id: number;
+  monthlyPoints: number;
   name: string;
   priceCents: number;
 }
@@ -168,6 +169,7 @@ export interface AiTemplate {
   id: number;
   name: string;
   params: string;
+  pointPrice: number;
   sort: number;
   type: AiType;
 }
@@ -180,16 +182,49 @@ export interface AiAsset {
   url: string;
 }
 
-export interface AiQuotaPart {
-  limit: number;
-  remaining: number;
-  used: number;
+export interface SubscriptionInfo {
+  balancePoints: number;
+  failureReason: string;
+  graceUntil: string | null;
+  id: number;
+  lastChargeAt: string | null;
+  level: string;
+  memberNo: string;
+  monthlyPoints: number;
+  nextChargeAt: string | null;
+  period: string;
+  planId: number;
+  planName: string;
+  priceCents: number;
+  status: 'ACTIVE' | 'CANCELLED' | 'PAST_DUE' | 'SUSPENDED';
+  statusText: string;
+}
+
+export interface PointPrices {
+  dressup: number;
+  photo: number;
+  video: number;
 }
 
 export interface AiQuota {
-  image: AiQuotaPart;
-  period: BenefitPeriod | null;
-  video: AiQuotaPart;
+  balancePoints: number;
+  monthlyPoints: number;
+  period: string;
+  prices: PointPrices;
+  resetAt: string | null;
+  subscription: SubscriptionInfo | null;
+}
+
+export interface PointLedgerItem {
+  balanceAfter: number;
+  createdAt: string;
+  delta: number;
+  id: number;
+  operator: string;
+  period: string;
+  refId: string;
+  refType: string;
+  type: 'ADJUST' | 'CONSUME' | 'EXPIRE' | 'GRANT' | 'REFUND' | 'RESET';
 }
 
 export interface AiTask {
@@ -376,6 +411,15 @@ export function getAiTemplates(type?: AiType): Promise<AiTemplate[]> {
 
 export function getAiQuota(): Promise<AiQuota> {
   return request<AiQuota>('/c/quota');
+}
+
+export function getSubscription(): Promise<null | SubscriptionInfo> {
+  return request<null | SubscriptionInfo>('/c/subscription');
+}
+
+export function getPointLedger(month?: string): Promise<PointLedgerItem[]> {
+  const query = month ? `?month=${encodeURIComponent(month)}` : '';
+  return request<PointLedgerItem[]>(`/c/points/ledger${query}`);
 }
 
 export function getAiTasks(): Promise<AiTask[]> {

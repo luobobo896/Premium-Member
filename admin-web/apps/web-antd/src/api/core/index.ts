@@ -5,6 +5,7 @@ export * from './content';
 export * from './member';
 export * from './menu';
 export * from './stats';
+export * from './subscription';
 export * from './system';
 export * from './ticket';
 export * from './trade';

@@ -9,6 +9,7 @@ export namespace TradeApi {
     createdAt: string;
     durationDays: number;
     id: number;
+    monthlyPoints: number;
     name: string;
     priceCents: number;
     status: number;
@@ -21,6 +22,7 @@ export namespace TradeApi {
     benefitQuota?: number;
     code: string;
     durationDays?: number;
+    monthlyPoints?: number;
     name: string;
     priceCents: number;
     status?: number;

@@ -13,11 +13,13 @@ public record AiTemplateResponse(
         String category,
         String coverUrl,
         String params,
-        int sort) {
+        int sort,
+        int pointPrice) {
 
-    public static AiTemplateResponse from(AiTemplate template) {
+    public static AiTemplateResponse from(AiTemplate template, int pointPrice) {
         return new AiTemplateResponse(template.getId(), template.getCode(), template.getName(),
                 template.getType(), template.getCategory(), template.getCoverUrl(),
-                template.getParams() == null ? "{}" : template.getParams(), template.getSort());
+                template.getParams() == null ? "{}" : template.getParams(), template.getSort(),
+                pointPrice);
     }
 }

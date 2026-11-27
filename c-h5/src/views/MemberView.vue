@@ -9,15 +9,17 @@ import {
   getAccessToken,
   getInfo,
   getMember,
+  getSubscription,
   logout,
   type CUserInfo,
   type MemberInfo,
+  type SubscriptionInfo,
 } from '../api';
 
 const emit = defineEmits<{
   login: [];
   logout: [];
-  navigate: ['benefit' | 'ai' | 'tickets' | 'orders'];
+  navigate: ['benefit' | 'ai' | 'tickets' | 'orders' | 'points' | 'subscription'];
 }>();
 
 const LEVELS: Record<string, string> = {
@@ -29,6 +31,7 @@ const LEVELS: Record<string, string> = {
 
 const user = ref<CUserInfo | null>(null);
 const member = ref<MemberInfo | null>(null);
+const subscription = ref<SubscriptionInfo | null>(null);
 const loggedIn = ref(Boolean(getAccessToken()));
 const loading = ref(true);
 const error = ref('');
@@ -38,12 +41,16 @@ function levelName(level: string): string {
   return LEVELS[level] ?? level;
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(value));
+function formatMonthDay(value: null | string): string {
+  if (!value) return '-';
+  const date = new Date(value);
+  return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function formatBalance(value: number): string {
-  return `¥${value.toFixed(2)}`;
+function statusClass(status: string): string {
+  if (status === 'ACTIVE') return 'pill--accent';
+  if (status === 'SUSPENDED' || status === 'CANCELLED') return 'pill--danger';
+  return 'pill--warning';
 }
 
 function initial(): string {
@@ -62,6 +69,7 @@ async function load(): Promise<void> {
     const [info, memberInfo] = await Promise.all([getInfo(), getMember()]);
     user.value = info;
     member.value = memberInfo;
+    subscription.value = await getSubscription();
   } catch (ex) {
     if (ex instanceof ApiError && ex.status === 401) {
       clearAccessToken();
@@ -110,10 +118,10 @@ onMounted(load);
           <span class="cover__sub">AI 写真 · 一键换装 · 图生视频</span>
         </div>
         <div class="card-body">
-          <p class="card-title">会员周期内按次使用</p>
-          <p class="card-sub">AI 次数按会员周期发放，权益名额每期可领取。</p>
+          <p class="card-title">会员周期内按积分使用</p>
+          <p class="card-sub">每月发放 AI 积分，2 项实物权益每期可领取。</p>
           <ul class="selling-list">
-            <li>AI 写真、换装与图生视频，按周期发放次数</li>
+            <li>AI 写真、换装与图生视频，统一消耗积分</li>
             <li>每个有效周期可选择 2 项权益，卡密仅领取时展示</li>
             <li>手机号 + 密码登录，登录后回到原页面继续</li>
           </ul>
@@ -140,11 +148,11 @@ onMounted(load);
           <h2 class="cover__title">{{ user?.nickname || '会员账号' }}</h2>
           <span class="cover__sub">{{ user?.phone || '正在读取账号' }}</span>
           <span
-            v-if="member"
+            v-if="subscription"
             class="pill profile-status"
-            :class="member.status === 1 ? 'pill--accent' : 'pill--danger'"
+            :class="statusClass(subscription.status)"
           >
-            {{ member.status === 1 ? '正常' : '停用' }}
+            {{ subscription.statusText }}
           </span>
         </div>
 
@@ -169,18 +177,23 @@ onMounted(load);
                 <dd>{{ levelName(member.level) }}</dd>
               </div>
               <div>
-                <dt>积分</dt>
-                <dd>{{ member.points.toLocaleString('zh-CN') }}</dd>
+                <dt>本月积分</dt>
+                <dd>
+                  {{ subscription?.balancePoints.toLocaleString('zh-CN') ?? 0 }} /
+                  {{ subscription?.monthlyPoints.toLocaleString('zh-CN') ?? 0 }}
+                </dd>
               </div>
               <div>
-                <dt>余额</dt>
-                <dd>{{ formatBalance(member.balance) }}</dd>
-              </div>
-              <div>
-                <dt>入会时间</dt>
-                <dd>{{ formatDate(member.joinedAt) }}</dd>
+                <dt>下次扣款</dt>
+                <dd>{{ formatMonthDay(subscription?.nextChargeAt ?? null) }}</dd>
               </div>
             </dl>
+            <p v-if="subscription?.failureReason" class="card-sub">
+              {{ subscription.failureReason }}
+            </p>
+            <p v-else-if="!subscription" class="card-sub">
+              还没有订阅，购买套餐后每月发放积分。
+            </p>
           </template>
         </div>
       </article>
@@ -190,6 +203,22 @@ onMounted(load);
           <h2 id="member-entry-title" class="section-title">会员服务</h2>
         </div>
         <div class="list">
+          <button class="list-item" type="button" @click="emit('navigate', 'subscription')">
+            <span class="list-item__icon"><AppIcon name="crown" :size="20" /></span>
+            <span class="list-item__body">
+              <span class="list-item__title">我的订阅</span>
+              <span class="list-item__sub">查看档位、下次扣款与订阅状态</span>
+            </span>
+            <span class="list-item__arrow"><AppIcon name="chevron-right" :size="18" /></span>
+          </button>
+          <button class="list-item" type="button" @click="emit('navigate', 'points')">
+            <span class="list-item__icon"><AppIcon name="sparkles" :size="20" /></span>
+            <span class="list-item__body">
+              <span class="list-item__title">积分明细</span>
+              <span class="list-item__sub">发放、消耗、清零与退还记录</span>
+            </span>
+            <span class="list-item__arrow"><AppIcon name="chevron-right" :size="18" /></span>
+          </button>
           <button class="list-item" type="button" @click="emit('navigate', 'benefit')">
             <span class="list-item__icon"><AppIcon name="gift" :size="20" /></span>
             <span class="list-item__body">

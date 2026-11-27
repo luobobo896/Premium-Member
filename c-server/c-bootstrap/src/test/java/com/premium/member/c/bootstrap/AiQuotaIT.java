@@ -4,7 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 
-import com.premium.member.c.biz.ai.service.AiQuotaService;
+import com.premium.member.c.biz.subscription.service.SubscriptionService;
 import com.premium.member.c.bootstrap.support.CIntegrationIT;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,24 +14,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AiQuotaIT extends CIntegrationIT {
 
     @Autowired
-    private AiQuotaService quotaService;
+    private SubscriptionService subscriptionService;
 
     @Test
-    void reserveSettleReleaseAndIdempotency() throws Exception {
+    void submitConsumesPointsAndFailureRefunds() throws Exception {
         Account account = createAccount("136" + uniqueSuffix(), "ITAI" + uniqueSuffix());
-        long periodId = createActivePeriod(account.memberId(), 1);
-
-        quotaService.reserve(periodId, "IMAGE", 0, "IT-RESERVE-" + periodId, "IT");
-        assertThat(sumDelta(periodId, "IMAGE")).isEqualTo(-1);
-        quotaService.reserve(periodId, "IMAGE", 0, "IT-RESERVE2-" + periodId, "IT");
-        assertThat(sumDelta(periodId, "IMAGE")).isEqualTo(-2);
-        quotaService.settle(periodId, "IMAGE", 0, "IT-RESERVE2-" + periodId);
-        assertThat(sumDelta(periodId, "IMAGE")).isEqualTo(-2);
-        quotaService.release(periodId, "IMAGE", 0, "IT-RESERVE2-" + periodId);
-        assertThat(sumDelta(periodId, "IMAGE")).isEqualTo(-1);
-        assertThat(ledgerCount(periodId, "IMAGE", "RESERVE")).isEqualTo(2);
-        assertThat(ledgerCount(periodId, "IMAGE", "SETTLE")).isEqualTo(1);
-        assertThat(ledgerCount(periodId, "IMAGE", "RELEASE")).isEqualTo(1);
+        long planId = createPlan("ITPT" + System.nanoTime(), 0, 0);
+        createActivePeriod(account.memberId(), planId);
+        subscriptionService.activate(account.memberId(), planId);
+        assertThat(balance(account.memberId())).isEqualTo(6000);
 
         long assetId = createInputAsset(account.memberId());
         long templateId = templateId("AI_PHOTO_01");
@@ -42,16 +33,17 @@ class AiQuotaIT extends CIntegrationIT {
         HttpResult first = post("/c/ai/tasks", request, account.token());
         assertThat(first.status()).isEqualTo(200);
         String taskNo = first.data().path("taskNo").asText();
+        assertThat(balance(account.memberId())).isEqualTo(5900);
+
         HttpResult duplicate = post("/c/ai/tasks", request, account.token());
         assertThat(duplicate.status()).isEqualTo(200);
         assertThat(duplicate.data().path("taskNo").asText()).isEqualTo(taskNo);
-        assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM ai_task WHERE idempotency_key = ?", Long.class, key))
-                .isEqualTo(1);
+        assertThat(balance(account.memberId())).isEqualTo(5900);
 
         awaitStatus(taskNo, account.token(), "FAILED");
-        assertThat(ledgerCountForTask(taskNo, "RESERVE")).isEqualTo(1);
-        assertThat(ledgerCountForTask(taskNo, "RELEASE")).isEqualTo(1);
+        assertThat(balance(account.memberId())).isEqualTo(6000);
+        assertThat(ledgerCount(taskNo, "CONSUME")).isEqualTo(1);
+        assertThat(ledgerCount(taskNo, "REFUND")).isEqualTo(1);
 
         String successKey = "it-success-key-" + System.nanoTime();
         HttpResult success = post("/c/ai/tasks", Map.of("templateId", templateId,
@@ -59,8 +51,19 @@ class AiQuotaIT extends CIntegrationIT {
         assertThat(success.status()).isEqualTo(200);
         String successTaskNo = success.data().path("taskNo").asText();
         awaitStatus(successTaskNo, account.token(), "SUCCESS");
-        assertThat(ledgerCountForTask(successTaskNo, "RESERVE")).isEqualTo(1);
-        assertThat(ledgerCountForTask(successTaskNo, "SETTLE")).isEqualTo(1);
+        assertThat(balance(account.memberId())).isEqualTo(5900);
+        assertThat(ledgerCount(successTaskNo, "CONSUME")).isEqualTo(1);
+        assertThat(ledgerCount(successTaskNo, "REFUND")).isZero();
+
+        HttpResult ledger = get("/c/points/ledger", account.token());
+        assertThat(ledger.status()).isEqualTo(200);
+        assertThat(ledger.data().isArray()).isTrue();
+        assertThat(ledger.data().size()).isGreaterThanOrEqualTo(4);
+
+        HttpResult subscription = get("/c/subscription", account.token());
+        assertThat(subscription.status()).isEqualTo(200);
+        assertThat(subscription.data().path("monthlyPoints").asInt()).isEqualTo(6000);
+        assertThat(subscription.data().path("balancePoints").asInt()).isEqualTo(5900);
 
         Account other = createAccount("135" + uniqueSuffix(), "ITAI2" + uniqueSuffix());
         HttpResult conflict = post("/c/ai/tasks", request, other.token());
@@ -69,42 +72,35 @@ class AiQuotaIT extends CIntegrationIT {
     }
 
     @Test
-    void exhaustedQuotaRejectsCreate() {
+    void insufficientPointsRejectsCreate() {
         Account account = createAccount("134" + uniqueSuffix(), "ITAI0" + uniqueSuffix());
         long planId = createPlan("ITZERO" + System.nanoTime(), 0, 0);
+        jdbc.update("UPDATE plan_version SET monthly_points = 0 WHERE id = ?", planId);
         createActivePeriod(account.memberId(), planId);
+        subscriptionService.activate(account.memberId(), planId);
         long assetId = createInputAsset(account.memberId());
         String key = "it-zero-key-" + System.nanoTime();
 
         HttpResult result = post("/c/ai/tasks", Map.of("templateId", templateId("AI_PHOTO_01"),
                 "inputAssetId", assetId, "idempotencyKey", key), account.token());
         assertThat(result.status()).isEqualTo(409);
-        assertThat(result.bizCode()).isEqualTo("AI_QUOTA_EXHAUSTED");
+        assertThat(result.bizCode()).isEqualTo("POINTS_INSUFFICIENT");
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM ai_task WHERE idempotency_key = ?", Long.class, key))
                 .isZero();
     }
 
-    private int sumDelta(long periodId, String kind) {
-        return jdbc.queryForObject("""
-                SELECT COALESCE(SUM(delta), 0) FROM quota_ledger
-                WHERE period_id = ? AND kind = ?
-                """, Integer.class, periodId, kind);
+    private int balance(long memberId) {
+        return jdbc.queryForObject(
+                "SELECT balance_points FROM point_account WHERE member_id = ?",
+                Integer.class, memberId);
     }
 
-    private long ledgerCount(long periodId, String kind, String reason) {
+    private long ledgerCount(String taskNo, String type) {
         return jdbc.queryForObject("""
-                SELECT count(*) FROM quota_ledger
-                WHERE period_id = ? AND kind = ? AND reason = ?
-                """, Long.class, periodId, kind, reason);
-    }
-
-    private long ledgerCountForTask(String taskNo, String reason) {
-        return jdbc.queryForObject("""
-                SELECT count(*) FROM quota_ledger q
-                JOIN ai_task t ON t.id = q.ref_task_id
-                WHERE t.task_no = ? AND q.reason = ?
-                """, Long.class, taskNo, reason);
+                SELECT count(*) FROM point_ledger
+                WHERE ref_type = 'AI_TASK' AND ref_id = ? AND type = ?
+                """, Long.class, taskNo, type);
     }
 
     private void awaitStatus(String taskNo, String token, String expected) throws Exception {

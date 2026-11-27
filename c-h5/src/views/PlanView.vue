@@ -30,9 +30,10 @@ const creating = ref(false);
 const error = ref('');
 
 const DEFAULT_RULES = [
-  '会员周期从服务端支付成功时间起算，连续 30 天，到期不自动续费。',
+  '会员每月 1 号自动代扣续费，成功后发放当月 AI 积分。',
+  '每月 1 号清零上月剩余积分，积分不可提现、不可抵扣现金。',
   '每个有效周期含 2 个权益名额，同一 SKU 每期最多领取一次，过期不结转。',
-  '已有生效周期时再次购买会生成 1 个待生效周期，紧接当前期结束后开始。',
+  '代扣失败进入 3 天宽限期，宽限内补扣成功仍发放积分，超时停用。',
 ];
 const title = ref('选择购买');
 const lede = ref('支付成功后立即开通，周期按服务端时间计算。');
@@ -153,8 +154,7 @@ onMounted(async () => {
         <span class="card-body">
           <span class="card-title">{{ plan.durationDays }} 天会员周期</span>
           <span class="card-sub">
-            图片 {{ plan.aiImageQuota }} 次 · 视频 {{ plan.aiVideoQuota }} 次 · 权益
-            {{ plan.benefitQuota }} 项
+            每月 {{ plan.monthlyPoints }} 积分 · 权益 {{ plan.benefitQuota }} 项
           </span>
         </span>
       </button>

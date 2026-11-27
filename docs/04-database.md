@@ -22,7 +22,11 @@
 | `benefit_product` | 权益商品 SKU |
 | `benefit_card` | 卡密，密文/哈希/掩码存储 |
 | `benefit_claim` | 权益领取单，周期 + SKU 唯一 |
-| `plan_version` | 套餐版本，改价/改额度生成新版本 |
+| `plan_version` | 套餐版本，改价/改额度/改月积分生成新版本 |
+| `subscription` | 会员订阅，记录下次扣款、宽限期与订阅状态 |
+| `point_account` | 会员积分余额，一个会员一条 |
+| `point_ledger` | 积分流水，幂等键唯一，涵盖发放/消耗/清零/退还/调整 |
+| `charge_record` | 自动续费代扣记录，订阅 + 账期 + 尝试次数唯一 |
 | `orders` | 会员套餐订单，同账号同用途未完成订单唯一 |
 | `payment_transactions` | 支付交易流水，交易号唯一、回调幂等 |
 | `refunds` | 整单退款申请与审核结果 |

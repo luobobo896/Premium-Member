@@ -21,7 +21,7 @@ import {
   type AiType,
 } from '../api';
 
-const emit = defineEmits<{ login: []; logout: [] }>();
+const emit = defineEmits<{ login: []; logout: []; plans: [] }>();
 
 const typeTabs: Array<{ label: string; value: AiType }> = [
   { label: '照片', value: 'PHOTO' },
@@ -30,12 +30,12 @@ const typeTabs: Array<{ label: string; value: AiType }> = [
 ];
 
 const STATUS_LABELS: Record<string, string> = {
-  FAILED: '生成失败，次数已返还',
+  FAILED: '生成失败，积分已返还',
   QUEUED: '排队中',
-  REJECTED: '已拒绝，次数已返还',
+  REJECTED: '已拒绝，积分已返还',
   RUNNING: '正在生成',
   SUCCESS: '生成完成',
-  UNKNOWN: '结果未知，次数保留',
+  UNKNOWN: '结果未知，积分保留',
 };
 
 const quota = ref<AiQuota | null>(null);
@@ -72,6 +72,20 @@ const categories = computed(() => {
 
 const works = computed(() => tasks.value.filter((item) => item.outputUrl));
 const terminal = new Set(['SUCCESS', 'FAILED', 'REJECTED', 'UNKNOWN']);
+const taskPrice = computed(() => {
+  const type = selectedTemplate.value?.type ?? activeType.value;
+  if (type === 'VIDEO') return quota.value?.prices.video ?? 500;
+  if (type === 'DRESSUP') return quota.value?.prices.dressup ?? 100;
+  return quota.value?.prices.photo ?? 100;
+});
+const insufficient = computed(
+  () => loggedIn.value && Boolean(quota.value) && quota.value!.balancePoints < taskPrice.value,
+);
+const consumeText = computed(() => {
+  if (!loggedIn.value) return '登录后按积分生成';
+  if (!quota.value?.subscription) return '当前没有订阅，开通会员后获得积分';
+  return `本次消耗 ${taskPrice.value} 积分 · 剩余 ${quota.value.balancePoints}`;
+});
 
 function coverTone(type: AiType): string {
   if (type === 'DRESSUP') return 'cover--dress';
@@ -85,6 +99,12 @@ function formatDate(value: null | string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatMonthDay(value: null | string): string {
+  if (!value) return '-';
+  const date = new Date(value);
+  return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function selectType(type: AiType) {
@@ -162,6 +182,10 @@ async function submit() {
     return;
   }
   if (!selectedTemplate.value || !inputAsset.value || submitting.value) return;
+  if (insufficient.value) {
+    error.value = '积分不足，去开通会员';
+    return;
+  }
   submitting.value = true;
   error.value = '';
   try {
@@ -228,8 +252,8 @@ onBeforeUnmount(() => {
         <h1 id="ai-title" class="page-title">把照片变成作品</h1>
         <p class="lede">选模板、上传一张照片，Mock 供应商约 1 秒生成占位作品。</p>
       </div>
-      <span v-if="quota?.period" class="pill pill--accent">
-        图 {{ quota.image.remaining }} · 视频 {{ quota.video.remaining }}
+      <span v-if="quota?.subscription" class="pill pill--accent">
+        积分 {{ quota.balancePoints }}
       </span>
     </header>
 
@@ -237,29 +261,23 @@ onBeforeUnmount(() => {
     <p v-else-if="error" class="form-error" role="alert">{{ error }}</p>
 
     <template v-if="!loading && !error">
-      <div v-if="loggedIn && quota?.period" class="quota-grid">
-        <article class="media-card">
-          <div class="cover cover--photo quota-cover">
-            <span class="cover__eyebrow">图片次数</span>
-            <span class="cover__title quota-number">{{ quota.image.remaining }}</span>
-            <span class="cover__sub">共 {{ quota.image.limit }} 次 · 照片与换装共用</span>
-          </div>
-        </article>
-        <article class="media-card">
-          <div class="cover cover--video quota-cover">
-            <span class="cover__eyebrow">视频次数</span>
-            <span class="cover__title quota-number">{{ quota.video.remaining }}</span>
-            <span class="cover__sub">共 {{ quota.video.limit }} 次 · 单独计次</span>
-          </div>
-        </article>
-      </div>
+      <article v-if="loggedIn && quota?.subscription" class="media-card">
+        <div class="cover cover--photo quota-cover">
+          <span class="cover__eyebrow">本月积分</span>
+          <span class="cover__title quota-number">{{ quota.balancePoints }}</span>
+          <span class="cover__sub">
+            {{ formatMonthDay(quota.resetAt) }} 重置 · 每月
+            {{ quota.monthlyPoints }} 积分
+          </span>
+        </div>
+      </article>
 
       <p v-else-if="!loggedIn" class="empty-state">
         游客可浏览全部 AI 模板，登录后上传照片并生成作品。
       </p>
 
       <p v-else class="empty-state">
-        当前没有生效中的会员周期，购买套餐后才会获得 AI 次数。
+        当前没有订阅，购买套餐后每月发放 AI 积分。
       </p>
 
       <div class="chips" role="tablist" aria-label="创作类型">
@@ -310,6 +328,7 @@ onBeforeUnmount(() => {
             <span class="cover template-cover" :class="coverTone(template.type)">
               <span class="cover__eyebrow">{{ template.category }}</span>
               <span class="cover__title">{{ template.name }}</span>
+              <span class="template-price">{{ template.pointPrice }} 积分</span>
             </span>
           </button>
         </div>
@@ -355,15 +374,25 @@ onBeforeUnmount(() => {
             已上传 {{ (inputAsset.size / 1024).toFixed(1) }} KB · {{ inputAsset.mime }}
           </p>
           <p class="card-sub">已选模板：{{ selectedTemplate?.name || '请选择一个模板' }}</p>
+          <p class="card-sub">{{ consumeText }}</p>
           <Button
             block
             type="primary"
             class="submit-button"
-            :disabled="!selectedTemplate || !inputAsset"
+            :disabled="!selectedTemplate || !inputAsset || insufficient"
             :loading="submitting"
             @click="submit"
           >
-            提交创作（消耗 1 次）
+            {{ insufficient ? '积分不足，去开通会员' : `提交创作（消耗 ${taskPrice} 积分）` }}
+          </Button>
+          <Button
+            v-if="insufficient"
+            block
+            plain
+            class="secondary-button"
+            @click="emit('plans')"
+          >
+            去开通会员
           </Button>
         </div>
       </article>
@@ -404,7 +433,7 @@ onBeforeUnmount(() => {
             <img :alt="currentTask.templateName" :src="assetUrl(currentTask.outputUrl)" />
           </div>
           <p v-if="currentTask.status === 'UNKNOWN'" class="card-sub">
-            供应商未返回明确结果，本次次数继续占用，只能查询，不会自动重试。
+            供应商未返回明确结果，本次积分继续占用，只能查询，不会自动重试。
           </p>
         </div>
       </article>
@@ -517,9 +546,22 @@ onBeforeUnmount(() => {
 }
 
 .template-cover .cover__title {
+  padding-bottom: 18px;
   font-size: var(--font-body);
   line-height: 1.35;
   white-space: normal;
+}
+
+.template-price {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(5, 10, 9, 0.72);
+  color: var(--accent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .file-input {

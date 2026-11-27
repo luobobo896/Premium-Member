@@ -29,6 +29,8 @@ public class PlanVersion {
 
     private Integer aiVideoQuota;
 
+    private Integer monthlyPoints;
+
     private Integer benefitQuota;
 
     private Integer status;

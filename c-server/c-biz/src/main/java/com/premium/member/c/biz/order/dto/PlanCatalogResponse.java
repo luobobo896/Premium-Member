@@ -12,11 +12,12 @@ public record PlanCatalogResponse(
         int durationDays,
         int aiImageQuota,
         int aiVideoQuota,
+        int monthlyPoints,
         int benefitQuota) {
 
     public static PlanCatalogResponse from(PlanVersion plan) {
         return new PlanCatalogResponse(plan.getId(), plan.getName(), plan.getPriceCents(),
                 plan.getDurationDays(), plan.getAiImageQuota(), plan.getAiVideoQuota(),
-                plan.getBenefitQuota());
+                plan.getMonthlyPoints(), plan.getBenefitQuota());
     }
 }

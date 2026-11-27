@@ -15,6 +15,7 @@ public record PlanRequest(
         @Min(1) Integer durationDays,
         @Min(0) Integer aiImageQuota,
         @Min(0) Integer aiVideoQuota,
+        @Min(0) Integer monthlyPoints,
         @Min(0) Integer benefitQuota,
         Integer status) {
 }

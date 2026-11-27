@@ -49,6 +49,7 @@ const planForm = reactive({
   benefitQuota: 2,
   code: '',
   durationDays: 30,
+  monthlyPoints: 6000,
   name: '',
   priceYuan: 59,
   status: 1,
@@ -115,6 +116,7 @@ const planColumns: TableColumnsType = [
   { dataIndex: 'durationDays', key: 'durationDays', title: '周期(天)', width: 90 },
   { dataIndex: 'aiImageQuota', key: 'aiImageQuota', title: '图片额度', width: 100 },
   { dataIndex: 'aiVideoQuota', key: 'aiVideoQuota', title: '视频额度', width: 100 },
+  { dataIndex: 'monthlyPoints', key: 'monthlyPoints', title: '月积分', width: 100 },
   { dataIndex: 'benefitQuota', key: 'benefitQuota', title: '权益名额', width: 100 },
   { dataIndex: 'versionNo', key: 'versionNo', title: '版本', width: 90 },
   { dataIndex: 'status', key: 'status', title: '状态', width: 100 },
@@ -229,6 +231,7 @@ function openCreatePlan() {
     benefitQuota: 2,
     code: '',
     durationDays: 30,
+    monthlyPoints: 6000,
     name: '',
     priceYuan: 59,
     status: 1,
@@ -244,6 +247,7 @@ function openVersionPlan(record: TradeApi.Plan) {
     benefitQuota: record.benefitQuota,
     code: record.code,
     durationDays: record.durationDays,
+    monthlyPoints: record.monthlyPoints,
     name: record.name,
     priceYuan: record.priceCents / 100,
     status: 1,
@@ -268,6 +272,7 @@ async function savePlan() {
       benefitQuota: planForm.benefitQuota ?? 2,
       code: planForm.code.trim(),
       durationDays: planForm.durationDays ?? 30,
+      monthlyPoints: planForm.monthlyPoints ?? 6000,
       name: planForm.name.trim(),
       priceCents: Math.round(planForm.priceYuan * 100),
       status: planForm.status,
@@ -574,6 +579,12 @@ onMounted(() => {
             :min="0"
             addon-before="视频"
             class="w-40"
+          />
+          <InputNumber
+            v-model:value="planForm.monthlyPoints"
+            :min="0"
+            addon-before="月积分"
+            class="w-44"
           />
           <InputNumber
             v-model:value="planForm.benefitQuota"

@@ -1,12 +1,20 @@
 package com.premium.member.c.biz.ai.dto;
 
-import com.premium.member.c.biz.order.dto.PeriodView;
+import java.time.OffsetDateTime;
+
+import com.premium.member.c.biz.subscription.dto.SubscriptionView;
 
 /**
- * C 端 AI 额度。
+ * C 端 AI 积分额度与能力单价。
  */
-public record QuotaResponse(PeriodView period, QuotaPart image, QuotaPart video) {
+public record QuotaResponse(
+        int balancePoints,
+        int monthlyPoints,
+        String period,
+        OffsetDateTime resetAt,
+        Prices prices,
+        SubscriptionView subscription) {
 
-    public record QuotaPart(int limit, int used, int remaining) {
+    public record Prices(int photo, int dressup, int video) {
     }
 }

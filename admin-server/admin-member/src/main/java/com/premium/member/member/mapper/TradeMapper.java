@@ -53,10 +53,10 @@ public interface TradeMapper {
     @Insert("""
             INSERT INTO plan_version
                 (code, name, price_cents, duration_days, ai_image_quota, ai_video_quota,
-                 benefit_quota, status, version_no, created_at)
+                 monthly_points, benefit_quota, status, version_no, created_at)
             VALUES
                 (#{code}, #{name}, #{priceCents}, #{durationDays}, #{aiImageQuota}, #{aiVideoQuota},
-                 #{benefitQuota}, #{status}, #{versionNo}, now())
+                 #{monthlyPoints}, #{benefitQuota}, #{status}, #{versionNo}, now())
             """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insertPlan(com.premium.member.member.entity.PlanVersion plan);

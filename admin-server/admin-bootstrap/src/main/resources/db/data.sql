@@ -74,7 +74,11 @@ INSERT INTO sys_permission (id, code, name, type, description) VALUES
     (49, 'content:publish', '发布内容', 'BUTTON', '发布内容草稿'),
     (50, 'content:rollback', '回滚内容', 'BUTTON', '回滚到上一已发布版本'),
     (51, 'stats:daily', '统计日报', 'API', '查询每日运营统计'),
-    (52, 'stats:export', '统计导出', 'BUTTON', '导出统计 CSV 并记录审计')
+    (52, 'stats:export', '统计导出', 'BUTTON', '导出统计 CSV 并记录审计'),
+    (53, 'subscription:list', '订阅列表', 'API', '查询订阅与下次扣款'),
+    (54, 'subscription:charge:list', '代扣记录', 'API', '查询自动续费代扣记录'),
+    (55, 'subscription:grant', '手动补发积分', 'BUTTON', '人工补发积分并写审计'),
+    (56, 'subscription:run', '执行订阅任务', 'BUTTON', '手动触发月度清零与代扣任务')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, title, icon,
@@ -192,7 +196,15 @@ INSERT INTO sys_menu (id, parent_id, name, path, component, redirect, type, titl
     (90, 0, 'Stats', '/stats', '/stats/index', NULL, 'menu', '运营统计',
      'lucide:chart-column', 'stats:daily', 20, 1, 1, 0, 0, 0),
     (901, 90, 'StatsExport', '', NULL, NULL, 'button', '导出统计',
-     NULL, 'stats:export', 1, 1, 1, 0, 0, 0)
+     NULL, 'stats:export', 1, 1, 1, 0, 0, 0),
+    (55, 0, 'Subscription', '/subscriptions', '/subscription/index', NULL, 'menu', '订阅与积分',
+     'lucide:refresh-cw', 'subscription:list', 21, 1, 1, 0, 0, 0),
+    (551, 55, 'SubscriptionChargeList', '', NULL, NULL, 'button', '查看代扣记录',
+     NULL, 'subscription:charge:list', 1, 1, 1, 0, 0, 0),
+    (552, 55, 'SubscriptionGrant', '', NULL, NULL, 'button', '手动补发积分',
+     NULL, 'subscription:grant', 2, 1, 1, 0, 0, 0),
+    (553, 55, 'SubscriptionRun', '', NULL, NULL, 'button', '执行订阅任务',
+     NULL, 'subscription:run', 3, 1, 1, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sys_user (id, username, password_hash, real_name, avatar, description, home_path,
@@ -307,9 +319,26 @@ INSERT INTO benefit_product (id, sku_code, name, description, rules, status, sor
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO plan_version (id, code, name, price_cents, duration_days, ai_image_quota,
-                          ai_video_quota, benefit_quota, status, version_no) VALUES
-    (1, 'PREMIUM_30', 'AI 创作会员 · 30 天', 5900, 30, 20, 3, 2, 1, 1)
+                          ai_video_quota, monthly_points, benefit_quota, status, version_no) VALUES
+    (1, 'PREMIUM_30', 'AI 创作会员 · 30 天', 9900, 30, 20, 3, 6000, 2, 1, 1)
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO subscription (id, member_id, plan_id, status, monthly_points, price_cents,
+                          billing_day, next_charge_at, last_charge_at, grace_until,
+                          failure_reason, sign_contract_no, version) VALUES
+    (1, 1, 1, 'ACTIVE', 6000, 9900, 1,
+     TIMESTAMPTZ '2026-12-01 00:05:00+08', now() - INTERVAL '5 days', NULL, '', '', 0)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO point_account (id, member_id, balance_points, updated_at) VALUES
+    (1, 1, 6000, now())
+ON CONFLICT DO NOTHING;
+
+INSERT INTO point_ledger (member_id, delta, balance_after, type, ref_type, ref_id, period,
+                          idempotency_key, operator, created_at) VALUES
+    (1, 6000, 6000, 'GRANT', 'SEED', '1', '2026-11', 'GRANT:1:2026-11', 'SYSTEM',
+     now() - INTERVAL '5 days')
+ON CONFLICT (idempotency_key) DO NOTHING;
 
 INSERT INTO ai_template (code, name, type, category, cover_url, params, status, version_no, sort) VALUES
     ('AI_PHOTO_01', '韩系证件照', 'PHOTO', '证件照', '',
@@ -395,3 +424,7 @@ SELECT setval(pg_get_serial_sequence('pm_member_period', 'id'), (SELECT MAX(id) 
 SELECT setval(pg_get_serial_sequence('benefit_product', 'id'), (SELECT MAX(id) FROM benefit_product));
 SELECT setval(pg_get_serial_sequence('plan_version', 'id'), (SELECT MAX(id) FROM plan_version));
 SELECT setval(pg_get_serial_sequence('ai_template', 'id'), (SELECT MAX(id) FROM ai_template));
+SELECT setval(pg_get_serial_sequence('subscription', 'id'), (SELECT COALESCE(MAX(id), 1) FROM subscription));
+SELECT setval(pg_get_serial_sequence('point_account', 'id'), (SELECT COALESCE(MAX(id), 1) FROM point_account));
+SELECT setval(pg_get_serial_sequence('point_ledger', 'id'), (SELECT COALESCE(MAX(id), 1) FROM point_ledger));
+SELECT setval(pg_get_serial_sequence('charge_record', 'id'), (SELECT COALESCE(MAX(id), 1) FROM charge_record));

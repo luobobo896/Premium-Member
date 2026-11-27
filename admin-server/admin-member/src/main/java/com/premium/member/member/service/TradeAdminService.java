@@ -155,6 +155,7 @@ public class TradeAdminService {
         plan.setDurationDays(value(request.durationDays(), 30));
         plan.setAiImageQuota(value(request.aiImageQuota(), 20));
         plan.setAiVideoQuota(value(request.aiVideoQuota(), 3));
+        plan.setMonthlyPoints(value(request.monthlyPoints(), 6000));
         plan.setBenefitQuota(value(request.benefitQuota(), 2));
         plan.setStatus(value(request.status(), 1));
         plan.setVersionNo(versionNo);

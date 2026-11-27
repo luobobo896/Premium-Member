@@ -22,6 +22,7 @@ import com.premium.member.c.biz.ai.storage.StorageService;
 import com.premium.member.c.biz.benefit.entity.PmMemberPeriod;
 import com.premium.member.c.biz.member.entity.PmMember;
 import com.premium.member.c.biz.member.mapper.PmMemberMapper;
+import com.premium.member.c.biz.subscription.service.SubscriptionService;
 import com.premium.member.c.common.exception.BusinessException;
 import com.premium.member.c.common.exception.ErrorCode;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,15 +43,18 @@ public class AiTaskService {
     private final AiMapper aiMapper;
     private final PmMemberMapper memberMapper;
     private final AiQuotaService quotaService;
+    private final SubscriptionService subscriptionService;
     private final StorageService storageService;
     private final Duration signedUrlTtl;
 
     public AiTaskService(AiMapper aiMapper, PmMemberMapper memberMapper,
-            AiQuotaService quotaService, StorageService storageService,
+            AiQuotaService quotaService, SubscriptionService subscriptionService,
+            StorageService storageService,
             @Value("${app.ai.signed-url-ttl-seconds:1800}") long signedUrlTtlSeconds) {
         this.aiMapper = aiMapper;
         this.memberMapper = memberMapper;
         this.quotaService = quotaService;
+        this.subscriptionService = subscriptionService;
         this.storageService = storageService;
         this.signedUrlTtl = Duration.ofSeconds(signedUrlTtlSeconds);
     }
@@ -62,15 +66,15 @@ public class AiTaskService {
         }
         String normalizedCategory = StringUtils.hasText(category) ? category.trim() : "";
         return aiMapper.selectTemplates(normalizedType, normalizedCategory).stream()
-                .map(AiTemplateResponse::from)
+                .map(template -> AiTemplateResponse.from(template,
+                        quotaService.price(template.getType())))
                 .toList();
     }
 
     @Transactional
     public QuotaResponse quota(String phone) {
-        PmMember member = requireActiveMember(phone);
-        refreshPeriods(member.getId());
-        return quotaService.forPeriod(aiMapper.selectActivePeriod(member.getId()));
+        requireActiveMember(phone);
+        return quotaService.forSubscription(subscriptionService.view(phone));
     }
 
     @Transactional
@@ -113,8 +117,7 @@ public class AiTaskService {
             }
             return existingResponse(duplicate, member.getId());
         }
-        quotaService.reserve(period.getId(), kind(task.getType()), task.getId(), task.getTaskNo(),
-                member.getMemberNo());
+        quotaService.consume(member.getId(), task.getType(), task.getTaskNo());
         AiTaskRow row = aiMapper.selectTaskRow(task.getTaskNo(), member.getId());
         return row == null
                 ? toResponse(task, template.getName(), input.getStorageKey(), null, null)
@@ -208,10 +211,6 @@ public class AiTaskService {
             throw new BusinessException(ErrorCode.AI_ASSET_NOT_FOUND);
         }
         return asset;
-    }
-
-    private String kind(String type) {
-        return "VIDEO".equals(type) ? "VIDEO" : "IMAGE";
     }
 
     private void refreshPeriods(long memberId) {

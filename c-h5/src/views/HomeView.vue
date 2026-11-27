@@ -30,7 +30,7 @@ const features = [
       <span class="cover cover--hero">
         <span class="cover__eyebrow">会员套餐</span>
         <span class="cover__title">支付成功后立即开通</span>
-        <span class="cover__sub">周期按服务端时间计算 · 到期不自动续费</span>
+        <span class="cover__sub">每月自动续费 · 每月发放 AI 积分</span>
         <span class="pill pill--accent home-hero__pill">查看套餐</span>
       </span>
     </button>
@@ -38,7 +38,7 @@ const features = [
     <section aria-labelledby="feature-title">
       <div class="section-head">
         <h2 id="feature-title" class="section-title">创作能力</h2>
-        <p class="section-sub">按会员周期发放次数</p>
+        <p class="section-sub">每月发放积分</p>
       </div>
       <div class="feature-grid">
         <button

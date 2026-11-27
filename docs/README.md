@@ -27,3 +27,4 @@
 | `21-android.md` | Android APK 构建、签名与安装 |
 | `22-ui.md` | C 端暗色 UI 重做：tokens、页面结构、截图与边界 |
 | `23-guest-mode.md` | 游客模式：公开/受保护接口、前端拦截点、验收与截图 |
+| `25-subscription-points.md` | 订阅制、每月积分、Mock 代扣、宽限期、积分账本、迁移与验收 |

@@ -54,6 +54,12 @@ function coverTone(type: AiType): string {
   return 'photo';
 }
 
+function formatMonthDay(value: null | string): string {
+  if (!value) return '-';
+  const date = new Date(value);
+  return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function openType(type: AiType): void {
   uni.setStorageSync('pm_ai_type', type);
   uni.removeStorageSync('pm_ai_template_id');
@@ -131,11 +137,11 @@ onShow(load);
         <text class="status-title">{{ loggedIn ? '创作会员' : 'AI 创作' }}</text>
       </view>
       <view class="status-right">
-        <text v-if="loggedIn && quota?.period" class="pm-sub">
-          图片剩余 <text class="status-num">{{ quota.image.remaining }}</text> · 视频剩余
-          <text class="status-num">{{ quota.video.remaining }}</text>
+        <text v-if="loggedIn && quota?.subscription" class="pm-sub">
+          本月积分 <text class="status-num">{{ quota.balancePoints }}</text> ·
+          {{ formatMonthDay(quota.resetAt) }} 重置
         </text>
-        <text v-else-if="loggedIn" class="pm-sub">未开通本期权益</text>
+        <text v-else-if="loggedIn" class="pm-sub">未开通订阅</text>
         <text v-else class="pm-sub">登录后查看</text>
         <AppIcon name="chevron-right" :size="16" />
       </view>
@@ -184,6 +190,7 @@ onShow(load);
           :tone="coverTone(template.type)"
           :height="104"
         />
+        <text class="tpl-price">{{ template.pointPrice }} 积分</text>
       </view>
     </view>
 
@@ -367,11 +374,24 @@ onShow(load);
 }
 
 .tpl {
+  position: relative;
   width: calc(25% - 6px);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface);
+}
+
+.tpl-price {
+  position: absolute;
+  right: var(--space-1);
+  bottom: 22px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(5, 10, 9, 0.72);
+  color: var(--accent);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .tpl-skeleton {

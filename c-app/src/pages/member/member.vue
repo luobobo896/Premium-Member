@@ -5,13 +5,14 @@ import { onShow } from '@dcloudio/uni-app';
 import {
   ApiError,
   clearToken,
-  getBenefits,
   getInfo,
   getMember,
+  getSubscription,
   getToken,
   logout,
   requireLogin,
   type MemberInfo,
+  type SubscriptionInfo,
 } from '../../api';
 import AppIcon from '../../components/AppIcon.vue';
 import AppTabbar from '../../components/AppTabbar.vue';
@@ -26,7 +27,7 @@ const LEVELS: Record<string, string> = {
 const nickname = ref('');
 const phone = ref('');
 const member = ref<MemberInfo | null>(null);
-const benefitEnd = ref('');
+const subscription = ref<SubscriptionInfo | null>(null);
 const loading = ref(true);
 const error = ref('');
 const loggingOut = ref(false);
@@ -46,8 +47,10 @@ function formatDate(value: null | string): string {
   ).padStart(2, '0')}`;
 }
 
-function formatBalance(value: number): string {
-  return `¥${value.toFixed(2)}`;
+function statusClass(status: string): string {
+  if (status === 'ACTIVE') return 'pm-pill--accent';
+  if (status === 'SUSPENDED' || status === 'CANCELLED') return 'pm-pill--danger';
+  return 'pm-pill--warning';
 }
 
 async function load(): Promise<void> {
@@ -67,13 +70,12 @@ async function load(): Promise<void> {
     } catch (ex) {
       if (ex instanceof ApiError && ex.bizCode === 'MEMBER_NOT_FOUND') {
         member.value = null;
-        benefitEnd.value = '';
+        subscription.value = null;
         return;
       }
       throw ex;
     }
-    const center = await getBenefits().catch(() => null);
-    benefitEnd.value = center?.period?.endAt ?? '';
+    subscription.value = await getSubscription().catch(() => null);
   } catch (ex) {
     if (ex instanceof ApiError && ex.statusCode === 401) {
       clearToken();
@@ -111,6 +113,14 @@ function openAi(): void {
   uni.reLaunch({ url: '/pages/ai/ai' });
 }
 
+function openSubscription(): void {
+  uni.navigateTo({ url: '/pages/subscription/subscription' });
+}
+
+function openPoints(): void {
+  uni.navigateTo({ url: '/pages/points/points' });
+}
+
 function openTickets(): void {
   uni.navigateTo({ url: '/pages/ticket/ticket' });
 }
@@ -132,7 +142,7 @@ onShow(load);
       <view class="pm-card guest-points">
         <view class="guest-point">
           <AppIcon name="sparkles" :size="18" />
-          <text>AI 写真、换装与图生视频</text>
+          <text>每月发放 AI 积分，写真、换装与图生视频通用</text>
         </view>
         <view class="guest-point">
           <AppIcon name="gift" :size="18" />
@@ -175,29 +185,43 @@ onShow(load);
       <view v-else class="member-card">
         <view class="card-head">
           <text class="card-label">会员卡</text>
-          <text class="pm-pill" :class="member.status === 1 ? 'pm-pill--accent' : 'pm-pill--danger'">
-            {{ member.status === 1 ? '正常' : '停用' }}
+          <text
+            v-if="subscription"
+            class="pm-pill"
+            :class="statusClass(subscription.status)"
+          >
+            {{ subscription.statusText }}
           </text>
         </view>
         <text class="card-level">{{ levelName(member.level) }}</text>
         <text class="card-no">{{ member.memberNo }}</text>
         <view class="card-grid">
-          <view class="card-cell cell-date">
-            <text class="cell-label">到期</text>
-            <text class="cell-value">{{ formatDate(benefitEnd) }}</text>
+          <view class="card-cell">
+            <text class="cell-label">本月积分</text>
+            <text class="cell-value">
+              {{ subscription?.balancePoints ?? 0 }} / {{ subscription?.monthlyPoints ?? 0 }}
+            </text>
           </view>
           <view class="card-cell">
-            <text class="cell-label">余额</text>
-            <text class="cell-value">{{ formatBalance(member.balance) }}</text>
-          </view>
-          <view class="card-cell">
-            <text class="cell-label">积分</text>
-            <text class="cell-value">{{ member.points }}</text>
+            <text class="cell-label">下次扣款</text>
+            <text class="cell-value">{{ formatDate(subscription?.nextChargeAt ?? null) }}</text>
           </view>
         </view>
       </view>
 
       <view class="pm-card menu">
+        <view class="menu-row pm-tap" @click="openSubscription">
+          <view class="menu-icon"><AppIcon name="crown" :size="20" /></view>
+          <text class="menu-label">我的订阅</text>
+          <AppIcon name="chevron-right" :size="18" />
+        </view>
+        <view class="menu-line"></view>
+        <view class="menu-row pm-tap" @click="openPoints">
+          <view class="menu-icon"><AppIcon name="sparkles" :size="20" /></view>
+          <text class="menu-label">积分明细</text>
+          <AppIcon name="chevron-right" :size="18" />
+        </view>
+        <view class="menu-line"></view>
         <view class="menu-row pm-tap" @click="openBenefit">
           <view class="menu-icon"><AppIcon name="gift" :size="20" /></view>
           <text class="menu-label">权益中心</text>

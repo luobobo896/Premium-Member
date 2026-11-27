@@ -33,6 +33,13 @@ app:
   benefit:
     card-secret: ${BENEFIT_CARD_SECRET:premium-member-dev-only-card-secret}
     low-stock-threshold: ${BENEFIT_LOW_STOCK_THRESHOLD:5}
+  subscription:
+    enabled: ${SUBSCRIPTION_JOB_ENABLED:true}
+    provider: ${SUBSCRIPTION_PROVIDER:mock}
+    mock-result: ${SUBSCRIPTION_MOCK_RESULT:SUCCESS}
+    grace-days: ${SUBSCRIPTION_GRACE_DAYS:3}
+    billing-cron: ${SUBSCRIPTION_BILLING_CRON:0 5 0 1 * *}
+    dunning-cron: ${SUBSCRIPTION_DUNNING_CRON:0 30 * * * *}
 
 mybatis-plus:
   configuration:

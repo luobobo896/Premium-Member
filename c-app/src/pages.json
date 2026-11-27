@@ -35,6 +35,18 @@
       "style": {
         "navigationBarTitleText": "AI 创作"
       }
+    },
+    {
+      "path": "pages/subscription/subscription",
+      "style": {
+        "navigationBarTitleText": "我的订阅"
+      }
+    },
+    {
+      "path": "pages/points/points",
+      "style": {
+        "navigationBarTitleText": "积分明细"
+      }
     }
   ],
   "globalStyle": {

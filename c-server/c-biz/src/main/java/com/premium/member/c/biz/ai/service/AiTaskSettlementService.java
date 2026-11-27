@@ -46,7 +46,7 @@ public class AiTaskSettlementService {
             storageService.delete(stored.storageKey());
             throw new BusinessException(ErrorCode.AI_TASK_STATE_INVALID);
         }
-        quotaService.settle(task.getPeriodId(), kind(task.getType()), task.getId(), task.getTaskNo());
+        // 积分在提交时已扣除，成功结算不再产生新的积分流水。
     }
 
     @Transactional
@@ -54,8 +54,7 @@ public class AiTaskSettlementService {
         String safeReason = reason == null ? "" : reason.substring(0, Math.min(reason.length(), 512));
         if (aiMapper.markTerminal(task.getTaskNo(), status, safeReason,
                 OffsetDateTime.now(ZoneOffset.UTC)) == 1) {
-            quotaService.release(task.getPeriodId(), kind(task.getType()), task.getId(),
-                    task.getTaskNo());
+            quotaService.refund(task.getMemberId(), task.getType(), task.getTaskNo());
         }
     }
 
@@ -64,9 +63,5 @@ public class AiTaskSettlementService {
         String safeReason = reason == null ? "" : reason.substring(0, Math.min(reason.length(), 512));
         aiMapper.markTerminal(task.getTaskNo(), "UNKNOWN", safeReason,
                 OffsetDateTime.now(ZoneOffset.UTC));
-    }
-
-    private String kind(String type) {
-        return "VIDEO".equals(type) ? "VIDEO" : "IMAGE";
     }
 }

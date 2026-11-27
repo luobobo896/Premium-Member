@@ -15,6 +15,7 @@ public record PlanResponse(
         int durationDays,
         int aiImageQuota,
         int aiVideoQuota,
+        int monthlyPoints,
         int benefitQuota,
         int status,
         int versionNo,
@@ -23,6 +24,7 @@ public record PlanResponse(
     public static PlanResponse from(PlanVersion plan) {
         return new PlanResponse(plan.getId(), plan.getCode(), plan.getName(), plan.getPriceCents(),
                 plan.getDurationDays(), plan.getAiImageQuota(), plan.getAiVideoQuota(),
-                plan.getBenefitQuota(), plan.getStatus(), plan.getVersionNo(), plan.getCreatedAt());
+                plan.getMonthlyPoints(), plan.getBenefitQuota(), plan.getStatus(),
+                plan.getVersionNo(), plan.getCreatedAt());
     }
 }

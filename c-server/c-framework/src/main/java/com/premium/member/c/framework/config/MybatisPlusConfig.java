@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
         "com.premium.member.c.biz.member.mapper",
         "com.premium.member.c.biz.benefit.mapper",
         "com.premium.member.c.biz.order.mapper",
+        "com.premium.member.c.biz.subscription.mapper",
         "com.premium.member.c.biz.ai.mapper",
         "com.premium.member.c.biz.ticket.mapper",
         "com.premium.member.c.biz.content.mapper"

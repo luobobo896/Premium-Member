@@ -13,12 +13,13 @@ public record PlanResponse(
         int durationDays,
         int aiImageQuota,
         int aiVideoQuota,
+        int monthlyPoints,
         int benefitQuota,
         int versionNo) {
 
     public static PlanResponse from(PlanVersion plan) {
         return new PlanResponse(plan.getId(), plan.getCode(), plan.getName(), plan.getPriceCents(),
                 plan.getDurationDays(), plan.getAiImageQuota(), plan.getAiVideoQuota(),
-                plan.getBenefitQuota(), plan.getVersionNo());
+                plan.getMonthlyPoints(), plan.getBenefitQuota(), plan.getVersionNo());
     }
 }

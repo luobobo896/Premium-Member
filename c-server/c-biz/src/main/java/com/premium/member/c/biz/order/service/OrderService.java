@@ -18,6 +18,7 @@ import com.premium.member.c.biz.order.entity.PlanVersion;
 import com.premium.member.c.biz.order.mapper.OrderMapper;
 import com.premium.member.c.biz.order.mapper.PlanVersionMapper;
 import com.premium.member.c.biz.order.payment.PaymentProvider;
+import com.premium.member.c.biz.subscription.service.SubscriptionService;
 import com.premium.member.c.common.exception.BusinessException;
 import com.premium.member.c.common.exception.ErrorCode;
 import org.springframework.dao.DuplicateKeyException;
@@ -38,13 +39,16 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final PmMemberMapper memberMapper;
     private final List<PaymentProvider> providers;
+    private final SubscriptionService subscriptionService;
 
     public OrderService(PlanVersionMapper planMapper, OrderMapper orderMapper,
-            PmMemberMapper memberMapper, List<PaymentProvider> providers) {
+            PmMemberMapper memberMapper, List<PaymentProvider> providers,
+            SubscriptionService subscriptionService) {
         this.planMapper = planMapper;
         this.orderMapper = orderMapper;
         this.memberMapper = memberMapper;
         this.providers = providers;
+        this.subscriptionService = subscriptionService;
     }
 
     public List<PlanCatalogResponse> plans() {
@@ -153,6 +157,7 @@ public class OrderService {
             period.setStatus("PENDING");
         }
         orderMapper.insertPeriod(period);
+        subscriptionService.activate(order.getMemberId(), order.getPlanVersionId());
     }
 
     private OrderResponse toResponse(Order order) {

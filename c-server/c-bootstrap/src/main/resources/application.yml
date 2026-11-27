@@ -65,6 +65,10 @@ app:
       poll-interval: ${DASHSCOPE_POLL_INTERVAL:3s}
       image-timeout: ${DASHSCOPE_IMAGE_TIMEOUT:2m}
       video-timeout: ${DASHSCOPE_VIDEO_TIMEOUT:10m}
+  points:
+    photo-price: ${POINTS_PHOTO_PRICE:100}
+    dressup-price: ${POINTS_DRESSUP_PRICE:100}
+    video-price: ${POINTS_VIDEO_PRICE:500}
 
 mybatis-plus:
   configuration:

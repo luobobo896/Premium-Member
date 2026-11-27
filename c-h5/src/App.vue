@@ -10,6 +10,8 @@ import OrderView from './views/OrderView.vue';
 import PayResultView from './views/PayResultView.vue';
 import PlanView from './views/PlanView.vue';
 import AiView from './views/AiView.vue';
+import PointsView from './views/PointsView.vue';
+import SubscriptionView from './views/SubscriptionView.vue';
 import TicketView from './views/TicketView.vue';
 import { consumeLoginRedirect, getAccessToken, setLoginIntent } from './api';
 import type { OrderInfo } from './api';
@@ -24,6 +26,8 @@ type View =
   | 'orders'
   | 'payResult'
   | 'plans'
+  | 'points'
+  | 'subscription'
   | 'tickets';
 const activeView = ref<View>('home');
 const currentOrder = ref<OrderInfo | null>(null);
@@ -37,7 +41,14 @@ const tabs = [
 
 const showTabs = computed(() => !['login', 'payResult'].includes(activeView.value));
 const activeTab = computed(() => {
-  if (activeView.value === 'orders' || activeView.value === 'tickets') return 'member';
+  if (
+    activeView.value === 'orders' ||
+    activeView.value === 'points' ||
+    activeView.value === 'subscription' ||
+    activeView.value === 'tickets'
+  ) {
+    return 'member';
+  }
   return activeView.value;
 });
 
@@ -47,7 +58,10 @@ function requestLogin(redirect: View, action?: { claimSku?: string; planId?: num
 }
 
 function navigate(view: View) {
-  if (!loggedIn.value && (view === 'orders' || view === 'tickets')) {
+  if (
+    !loggedIn.value &&
+    (view === 'orders' || view === 'points' || view === 'subscription' || view === 'tickets')
+  ) {
     requestLogin(view);
     return;
   }
@@ -94,7 +108,14 @@ function handleOrdered(order: OrderInfo) {
       v-else-if="activeView === 'ai'"
       @login="requestLogin('ai')"
       @logout="handleLogout"
+      @plans="navigate('plans')"
     />
+    <SubscriptionView
+      v-else-if="activeView === 'subscription' && loggedIn"
+      @logout="handleLogout"
+      @navigate="navigate"
+    />
+    <PointsView v-else-if="activeView === 'points' && loggedIn" @logout="handleLogout" />
     <PlanView
       v-else-if="activeView === 'plans'"
       @login="requestLogin('plans', $event)"
